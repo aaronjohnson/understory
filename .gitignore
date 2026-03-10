@@ -1,0 +1,20 @@
+# LaTeX build artifacts
+docs/*.aux
+docs/*.log
+docs/*.out
+docs/*.synctex.gz
+docs/*.fls
+docs/*.fdb_latexmk
+
+# CircuitPython secrets — never commit real credentials
+software/settings.toml
+
+# OS junk
+.DS_Store
+Thumbs.db
+
+# Editor
+*.swp
+*.swo
+*~
+.vscode/

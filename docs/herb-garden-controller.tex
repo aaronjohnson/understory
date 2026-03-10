@@ -1,0 +1,476 @@
+% herb-garden-controller.tex
+% Compile with: xelatex herb-garden-controller.tex (run twice)
+\documentclass[10pt, letterpaper]{article}
+
+\usepackage[margin=0.55in, top=0.45in, bottom=0.4in]{geometry}
+\usepackage[dvipsnames, table]{xcolor}
+\usepackage{tikz}
+\usepackage[americanresistors, americaninductors]{circuitikz}
+\usepackage{booktabs}
+\usepackage{tabularx}
+\usepackage{colortbl}
+\usepackage{enumitem}
+\usepackage{listings}
+\usepackage{tcolorbox}
+\usepackage{fancyhdr}
+\usepackage{fontspec}
+\usepackage{hyperref}
+\usepackage{parskip}
+\usepackage{pdflscape}
+\setlength{\parskip}{2pt plus 1pt minus 1pt}
+
+\setmainfont{Latin Modern Roman}
+\setmonofont{Latin Modern Mono}
+
+\definecolor{espblue}{HTML}{2563eb}
+\definecolor{fetred}{HTML}{dc2626}
+\definecolor{sigamber}{HTML}{b45309}
+\definecolor{loadcyan}{HTML}{0e7490}
+\definecolor{protpurple}{HTML}{7c3aed}
+\definecolor{growgreen}{HTML}{15803d}
+\definecolor{darkbg}{HTML}{1e293b}
+\definecolor{lightbg}{HTML}{f8fafc}
+\definecolor{codebg}{HTML}{f1f5f9}
+\definecolor{bordergray}{HTML}{cbd5e1}
+\definecolor{textgray}{HTML}{64748b}
+\definecolor{darktext}{HTML}{1e293b}
+\definecolor{gndcolor}{HTML}{374151}
+\definecolor{vplusred}{HTML}{b91c1c}
+\definecolor{divider}{HTML}{94a3b8}
+
+\hypersetup{colorlinks=true, linkcolor=espblue, urlcolor=espblue,
+  pdfauthor={AJ}, pdftitle={Herb Garden Light Controller}}
+
+\tcbuselibrary{skins, breakable}
+\newtcolorbox{calloutbox}[1][]{%
+  colback=blue!3, colframe=espblue!40,
+  fonttitle=\bfseries\small, left=5pt, right=5pt,
+  top=3pt, bottom=3pt, boxrule=0.5pt, arc=3pt, #1}
+\newtcolorbox{codebox}[1][]{%
+  colback=codebg, colframe=bordergray,
+  left=5pt, right=5pt, top=3pt, bottom=3pt,
+  boxrule=0.4pt, arc=2pt, #1}
+
+\lstdefinestyle{circuitpy}{
+  language=Python, basicstyle=\ttfamily\tiny,
+  keywordstyle=\color{espblue}\bfseries, stringstyle=\color{growgreen},
+  commentstyle=\color{textgray}\itshape, backgroundcolor=\color{codebg},
+  frame=single, rulecolor=\color{bordergray}, framesep=4pt,
+  xleftmargin=4pt, xrightmargin=4pt, breaklines=true,
+  showstringspaces=false, tabsize=4,
+  morekeywords={digitalio, wifi, socketpool, adafruit_ntp, Server, Request, Response}}
+
+\pagestyle{fancy}
+\fancyhf{}
+\renewcommand{\headrulewidth}{0pt}
+\fancyfoot[L]{\scriptsize\color{textgray} Herb Garden Light Controller · Rev~1 · Feb 2026}
+\fancyfoot[C]{\scriptsize\color{textgray} \thepage/2}
+\fancyfoot[R]{\scriptsize\color{textgray} CircuitPython · ESP32-S3 · Open Source}
+
+\usepackage{titlesec}
+\titleformat{\section}{\large\bfseries\color{darktext}}{}{0em}{}[\vspace{-4pt}\color{bordergray}\rule{\linewidth}{0.4pt}]
+\titlespacing*{\section}{0pt}{6pt}{2pt}
+\titleformat{\subsection}{\normalsize\bfseries\color{darktext}}{}{0em}{}
+\titlespacing*{\subsection}{0pt}{5pt}{1pt}
+
+\setlist[itemize]{nosep, leftmargin=1.2em, label=\textcolor{espblue}{\textbullet}}
+\setlist[enumerate]{nosep, leftmargin=1.5em}
+
+\begin{document}
+
+% ══════════════════════════════════════════════════════════════
+% PAGE 1: LANDSCAPE — Schematic + Notes + BOM
+% ══════════════════════════════════════════════════════════════
+
+\begin{landscape}
+\thispagestyle{fancy}
+
+{\huge\bfseries\color{darktext} Herb Garden Light Controller}\hfill
+{\color{textgray}\small ESP32-S3 + MOSFET · CircuitPython · WiFi Scheduler}
+
+\vspace{1pt}
+
+\section{Schematic --- Low-Side N-Channel MOSFET Switch}
+
+\vspace{-4pt}
+
+\begin{center}
+\begin{circuitikz}[
+  american,
+  scale=0.82, transform shape,
+  thick,
+]
+
+% ══════════════════════════════════════════════════
+% LAYOUT GRID (conceptual, not drawn):
+% x: 0-4 digital | 5 boundary | 6-16 analog | 17-20 load
+% y: main signal path at y=3
+%    components extend y=-3 to y=8
+% ══════════════════════════════════════════════════
+
+% ══════════════════════════════════════════════════
+% DOMAIN BOUNDARY — vertical dashed line
+% This is the conceptual division
+% ══════════════════════════════════════════════════
+
+\draw[divider, thick, dash pattern=on 8pt off 4pt]
+  (5.0, 8.5) -- (5.0, -3.8);
+\node[font=\small\itshape, color=divider, rotate=90, anchor=south]
+  at (4.6, 2.5) {software $\rightarrow$ electricity};
+
+% Domain labels at top
+\node[font=\normalsize\bfseries, color=espblue!60] at (2.5, 8.2) {DIGITAL};
+\node[font=\scriptsize, color=textgray] at (2.5, 7.6) {CircuitPython on ESP32};
+\node[font=\scriptsize, color=textgray] at (2.5, 7.1) {\texttt{light.value = True}};
+
+\node[font=\normalsize\bfseries, color=fetred!80] at (11.0, 8.2) {ANALOG};
+\node[font=\scriptsize, color=textgray] at (11.0, 7.6) {Real components, real current};
+
+\node[font=\normalsize\bfseries, color=growgreen!70] at (19.0, 8.2) {LOAD};
+\node[font=\scriptsize, color=textgray] at (19.0, 7.6) {Existing grow light};
+
+% ══════════════════════════════════════════════════
+% U1: ESP32 — small, left side, de-emphasized
+% ══════════════════════════════════════════════════
+
+\draw[thin, fill=blue!3, draw=espblue!40, rounded corners=4pt]
+  (0.2, 1.5) rectangle (3.8, 5.0);
+
+\node[font=\small\bfseries, color=espblue!50] at (2.0, 4.5) {U1};
+\node[font=\small, color=espblue!50] at (2.0, 3.9) {QT Py ESP32-S3};
+\node[font=\scriptsize, color=textgray!70] at (2.0, 3.3) {Adafruit 5700};
+\node[font=\scriptsize, color=textgray!70] at (2.0, 2.7) {WiFi · NTP · Web UI};
+
+% A0 pin — this is the output that matters
+\fill[sigamber] (3.8, 3.0) circle (3pt);
+\node[font=\scriptsize\bfseries, color=sigamber, anchor=east] at (3.6, 3.0) {A0};
+
+% GND pin
+\fill[gndcolor!50] (3.8, 2.0) circle (2pt);
+\node[font=\scriptsize, color=gndcolor!50, anchor=east] at (3.6, 2.0) {GND};
+
+% USB-C — tiny, above
+\draw[very thin, fill=gray!3, draw=textgray!30, rounded corners=2pt]
+  (0.8, 5.5) rectangle (3.2, 6.2);
+\node[font=\scriptsize, color=textgray!50] at (2.0, 5.85) {USB-C 5\,V};
+\draw[textgray!30, very thin, dashed] (2.0, 5.5) -- (2.0, 5.0);
+
+% ══════════════════════════════════════════════════
+% SIGNAL WIRE: A0 across boundary to junction
+% Thickens as it crosses into analog domain
+% ══════════════════════════════════════════════════
+
+\draw[sigamber, thick] (3.8, 3.0) -- (5.0, 3.0);
+\draw[sigamber, line width=2.5pt] (5.0, 3.0) -- (8.0, 3.0);
+
+% Label on wire
+\node[font=\normalsize, color=sigamber, anchor=south]
+  at (6.5, 3.2) {3.3\,V when ON};
+
+% ══════════════════════════════════════════════════
+% JUNCTION — clearly visible
+% ══════════════════════════════════════════════════
+
+\fill[sigamber] (8.0, 3.0) circle (5pt);
+
+% ══════════════════════════════════════════════════
+% R1: 10kΩ PULL-DOWN
+% Below junction, generous vertical space
+% Label to the LEFT, well clear of Q1
+% ══════════════════════════════════════════════════
+
+\draw[line width=2pt, color=darktext]
+  (8.0, 3.0) -- (8.0, 2.2)
+  to[R, color=darktext, l_={\large\bfseries 10\,k$\Omega$}] (8.0, -1.0)
+  -- (8.0, -2.0) node[ground, color=gndcolor, scale=1.2]{};
+
+% R1 ref — LEFT side, clear space
+\node[font=\Large\bfseries, color=darktext, anchor=east] at (7.1, 0.6) {R1};
+\node[font=\small, color=textgray, anchor=east] at (7.1, 0.0) {pull-down};
+
+% ══════════════════════════════════════════════════
+% GATE WIRE: junction to Q1
+% ══════════════════════════════════════════════════
+
+\draw[sigamber, line width=2.5pt] (8.0, 3.0) -- (11.5, 3.0);
+
+% ══════════════════════════════════════════════════
+% Q1: MOSFET — THE HERO
+% Centered at x=12, generous clearance all around
+% Labels BELOW and to the RIGHT only
+% ══════════════════════════════════════════════════
+
+\draw (12.0, 3.0) node[nigfete, anchor=gate,
+  line width=2pt, color=fetred, scale=1.5](Q1){};
+
+% Pin labels — on the pins, spaced away
+\node[font=\Large\bfseries, color=sigamber, anchor=east] at (11.6, 3.0) {G};
+\node[font=\Large\bfseries, color=loadcyan] at (12.8, 6.8) {D};
+\node[font=\Large\bfseries, color=gndcolor] at (12.8, -0.8) {S};
+
+% Q1 ref designator — RIGHT side, well below drain
+\node[font=\Huge\bfseries, color=fetred, anchor=west] at (14.0, 4.5) {Q1};
+
+% Part number — BELOW ref, still right side
+\node[font=\large\bfseries, color=fetred, anchor=west] at (14.0, 3.6) {STP55NF06L};
+\node[font=\normalsize, color=textgray, anchor=west] at (14.0, 2.8) {N-Ch MOSFET};
+\node[font=\normalsize, color=textgray, anchor=west] at (14.0, 2.1) {60\,V · 55\,A · TO-220};
+
+% Source to GND
+\draw[line width=2pt] (Q1.source) -- ++(0, -1.2)
+  node[ground, color=gndcolor, scale=1.2]{};
+
+% ══════════════════════════════════════════════════
+% D1: FLYBACK DIODE
+% To the RIGHT of Q1, own vertical space
+% No overlap with Q1 labels
+% ══════════════════════════════════════════════════
+
+% Route: Source right, up through diode, left to drain
+\draw[protpurple, line width=1.8pt]
+  (Q1.source) -- ++(3.5, 0) coordinate(D1bot);
+
+\draw[protpurple, line width=1.8pt]
+  (D1bot) to[D, color=protpurple, l={\Large\bfseries D1}] ++(0, 5.0)
+  coordinate(D1top);
+
+\draw[protpurple, line width=1.8pt]
+  (D1top) -- (Q1.drain);
+
+% D1 part number — to the RIGHT of diode, clear space
+\node[font=\large\bfseries, color=protpurple, anchor=west] at (17.0, 3.0) {1N4007};
+\node[font=\small, color=textgray, anchor=west] at (17.0, 2.3) {flyback};
+\node[font=\small, color=textgray, anchor=west] at (17.0, 1.7) {protection};
+
+% ══════════════════════════════════════════════════
+% DRAIN WIRE → LOAD
+% ══════════════════════════════════════════════════
+
+\draw[loadcyan, line width=2.5pt]
+  (Q1.drain) -- ++(0, 0.8) -- ++(5.5, 0) coordinate(loadwire);
+
+% ══════════════════════════════════════════════════
+% LOAD SIDE: Grow Light + PSU — subdued, far right
+% ══════════════════════════════════════════════════
+
+% Grow Light — small box, upper right
+\draw[thin, fill=green!3, draw=growgreen!40, rounded corners=4pt]
+  (17.8, 5.8) rectangle (21.0, 7.5);
+\node[font=\normalsize\bfseries, color=growgreen!60] at (19.4, 7.0) {Grow Light};
+\node[font=\scriptsize, color=textgray!70] at (19.4, 6.3) {LED Panel + Driver};
+
+% Wire from drain to grow light GND
+\draw[loadcyan, line width=2.5pt] (loadwire) -- ++(0.3,0) -- ++(0, 0.6);
+\node[font=\small\bfseries, color=loadcyan, fill=white, inner sep=1pt,
+  anchor=east] at (18.3, 6.5) {LED GND};
+
+% V+ rail (right edge)
+\draw[vplusred, line width=2.5pt] (20.5, 0.3) -- (20.5, 5.8);
+\node[font=\normalsize\bfseries, color=vplusred, rotate=90, anchor=south]
+  at (20.9, 3.0) {V+};
+
+% V+ connects to grow light
+\draw[vplusred, line width=2pt] (20.5, 5.8) -- (20.5, 5.8);
+
+% LED PSU — small box, lower right
+\draw[thin, fill=red!2, draw=vplusred!40, rounded corners=4pt]
+  (17.8, -1.2) rectangle (21.0, 0.3);
+\node[font=\normalsize\bfseries, color=vplusred!60] at (19.4, -0.1) {12\,V / 24\,V DC};
+\node[font=\scriptsize, color=textgray!70] at (19.4, -0.7) {LED Power Supply};
+
+% ══════════════════════════════════════════════════
+% COMMON GND BUS
+% ══════════════════════════════════════════════════
+
+\draw[gndcolor, thick, dashed]
+  (3.8, 2.0) -- (4.8, 2.0) -- (4.8, -3.2) -- (19.0, -3.2) -- (19.0, -1.2);
+\node[font=\normalsize, color=gndcolor, fill=white, inner sep=2pt]
+  at (11.5, -3.2) {Common GND Bus};
+
+% ══════════════════════════════════════════════════
+% Legend — single row, bottom
+% ══════════════════════════════════════════════════
+
+\draw[thin, fill=white, draw=bordergray, rounded corners=2pt]
+  (0.2, -4.4) rectangle (21.0, -3.65);
+\node[font=\small, anchor=west] at (0.5, -4.0) {%
+  \textcolor{vplusred}{\Large$\bullet$}\;\textcolor{darktext}{V+ Power}\qquad
+  \textcolor{sigamber}{\Large$\bullet$}\;\textcolor{darktext}{GPIO Signal}\qquad
+  \textcolor{loadcyan}{\Large$\bullet$}\;\textcolor{darktext}{Load Path}\qquad
+  \textcolor{gndcolor}{\Large$\bullet$}\;\textcolor{darktext}{Ground}\qquad
+  \textcolor{protpurple}{\Large$\bullet$}\;\textcolor{darktext}{Protection}\qquad
+  \textcolor{gndcolor}{- - -}\;\textcolor{darktext}{GND Bus}\qquad
+  \textcolor{divider}{- - -}\;\textcolor{darktext}{Domain Boundary}};
+
+% Title block (inline with legend)
+\node[font=\small, color=textgray, anchor=east] at (20.8, -4.0)
+  {Sheet 1/1 · Rev 1 · Feb 2026};
+
+\end{circuitikz}
+\end{center}
+
+\vspace{-6pt}
+
+% ══════════════════════════════════════════════════
+% Two columns: How it works + BOM
+% ══════════════════════════════════════════════════
+
+\noindent\begin{minipage}[t]{0.48\linewidth}
+\subsection{How It Works}
+
+\begin{enumerate}[leftmargin=1.5em, itemsep=1pt, label=\textbf{\arabic*.}]
+\item \textbf{U1} (digital) connects to WiFi, syncs clock via NTP.
+\item Schedule says ON $\rightarrow$ CircuitPython sets \texttt{A0 = True}.
+\item Pin A0 outputs 3.3\,V. \textit{Software becomes electricity.}
+\item 3.3\,V on \textbf{Q1} gate (analog) opens the MOSFET channel.
+\item Current: Grow Light $\rightarrow$ \textbf{Q1} D$\rightarrow$S $\rightarrow$ GND. Light on.
+\item Schedule says OFF $\rightarrow$ A0 LOW $\rightarrow$ \textbf{Q1} closes. Light off.
+\end{enumerate}
+
+\vspace{2pt}
+{\small\color{textgray}
+\textbf{R1:} Keeps gate LOW during ESP32 boot (prevents light flash).\\
+\textbf{D1:} Clamps voltage spikes when Q1 switches off.}
+
+\end{minipage}\hfill
+\begin{minipage}[t]{0.50\linewidth}
+
+\subsection{Bill of Materials --- DigiKey}
+
+\renewcommand{\arraystretch}{1.1}
+{\small
+\begin{tabularx}{\linewidth}{c c l >{\ttfamily\scriptsize}l c r}
+\toprule
+\rowcolor{darkbg}
+\textcolor{white}{\bfseries \#} &
+\textcolor{white}{\bfseries Ref} &
+\textcolor{white}{\bfseries Component} &
+\textcolor{white}{\bfseries\rmfamily DigiKey \#} &
+\textcolor{white}{\bfseries Qty} &
+\textcolor{white}{\bfseries Price} \\
+\midrule
+\rowcolor{lightbg}
+1 & U1 & QT Py ESP32-S3 & 1528-5700-ND & 1 & \$12.50 \\
+2 & Q1 & STP55NF06L & 497-6742-5-ND & 2 & \$2.07 \\
+\rowcolor{lightbg}
+3 & D1 & 1N4007 Diode & 1N4007DICT-ND & 1 & \$0.10 \\
+4 & R1 & 10\,k$\Omega$ \textrm{1/4W} & CF14JT10K0CT-ND & 5 & \$0.10 \\
+\rowcolor{lightbg}
+5 & -- & Jumper wires & \textrm{Global Spec.} & 1 & \$5.60 \\
+6 & -- & Breadboard & \textrm{(search)} & 1 & $\sim$\$4 \\
+\bottomrule
+\end{tabularx}
+}
+
+\vspace{3pt}
+{\scriptsize\color{textgray}
+\textbf{Total:} $\sim$\$28 \enspace$\cdot$\enspace
+\textbf{Order:} \texttt{digikey.com/en/mylists}\\
+\textbf{Before starting:} Open grow light base, find DC voltage (12\,V or 24\,V).}
+
+\end{minipage}
+
+\end{landscape}
+
+% ══════════════════════════════════════════════════════════════
+% PAGE 2: PORTRAIT — Software
+% ══════════════════════════════════════════════════════════════
+
+\section{Software --- CircuitPython}
+
+The ESP32 runs \textbf{CircuitPython}---Python that executes directly on the microcontroller.
+No compiler. No IDE. Plug in via USB-C, a flash drive appears, drag files onto it.
+Edit code, save, it runs.
+
+\begin{calloutbox}[title=Why this is cool]
+The ESP32 runs a tiny web server. Open a browser on your phone, visit
+\texttt{http://herbgarden.local}, and you get a scheduling UI.
+No app. No cloud. All running on a chip the size of a postage stamp under the kitchen cabinet.
+\end{calloutbox}
+
+\vspace{-2pt}
+
+\subsection{File Structure on the ESP32}
+
+\begin{codebox}
+\ttfamily\small
+/code.py\hfill\textrm{\scriptsize\color{textgray} Main program---runs on boot}\\
+/lib/\\
+\quad adafruit\_httpserver/\hfill\textrm{\scriptsize\color{textgray} Web server library}\\
+\quad adafruit\_ntp.mpy\hfill\textrm{\scriptsize\color{textgray} Network time sync}\\
+/static/\\
+\quad index.html\hfill\textrm{\scriptsize\color{textgray} Schedule UI (what your phone sees)}\\
+/schedule.json\hfill\textrm{\scriptsize\color{textgray} Saved on/off times}\\
+/settings.toml\hfill\textrm{\scriptsize\color{textgray} WiFi creds, timezone, quiet hours}
+\end{codebox}
+
+\vspace{-2pt}
+
+\subsection{The Main Loop (Simplified)}
+
+\begin{lstlisting}[style=circuitpy]
+import time, board, digitalio, json, wifi, socketpool
+import adafruit_ntp
+from adafruit_httpserver import Server, Request, Response
+
+# GPIO pin that controls the MOSFET gate
+light = digitalio.DigitalInOut(board.A0)
+light.direction = digitalio.Direction.OUTPUT
+
+# Connect to WiFi (creds from settings.toml)
+pool = socketpool.SocketPool(wifi.radio)
+ntp = adafruit_ntp.NTP(pool, tz_offset=-8)  # Pacific Time
+
+# Load saved schedule
+with open("/schedule.json", "r") as f:
+    schedule = json.load(f)
+
+server = Server(pool)
+
+@server.route("/")
+def index(request: Request):
+    with open("/static/index.html", "r") as f:
+        return Response(request, f.read(), content_type="text/html")
+
+server.start(str(wifi.radio.ipv4_address))
+
+while True:
+    server.poll()                              # handle web requests
+    now = ntp.datetime
+    light.value = should_be_on(now, schedule)  # True/False -> HIGH/LOW
+    time.sleep(1)
+\end{lstlisting}
+
+\subsection{Build Phases}
+
+\begin{description}[leftmargin=0em, font=\bfseries\small, nosep, itemsep=2pt]
+\item[Phase 1 --- Prove it works {\normalfont\color{textgray}(1 afternoon)}]
+  Flash CircuitPython. Connect WiFi. Sync time. Toggle onboard LED on schedule. Web UI on phone. No MOSFET yet.
+
+\item[Phase 2 --- Real load {\normalfont\color{textgray}(1 evening)}]
+  Wire MOSFET on breadboard. Connect to grow light's DC ground. Control actual light from web UI.
+
+\item[Phase 3 --- Install {\normalfont\color{textgray}(weekend)}]
+  Mount under cabinet. Solder permanent connections. Set schedule. Forget about it.
+
+\item[Phase 4 --- Show off {\normalfont\color{textgray}(optional)}]
+  GitHub. Blog post. MQTT for Home Assistant. Soil moisture sensor. Go wild.
+\end{description}
+
+\vspace{4pt}
+
+\begin{calloutbox}[title=First step when parts arrive]
+Plug QT Py into USB-C. A drive called \texttt{CIRCUITPY} appears.
+If it doesn't, visit \texttt{circuitpython.org/downloads} and flash the latest build
+for ``Adafruit QT Py ESP32-S3.'' Then create \texttt{settings.toml} with your WiFi credentials.
+\end{calloutbox}
+
+\vfill
+\begin{center}
+{\scriptsize\color{textgray}
+Hardware: Adafruit + STMicro \quad$\cdot$\quad
+Software: CircuitPython \quad$\cdot$\quad
+Basil: indifferent to all of this}
+\end{center}
+
+\end{document}

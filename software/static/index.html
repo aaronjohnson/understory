@@ -1,0 +1,155 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Herb Garden</title>
+<style>
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, sans-serif;
+    background: #f8fafc;
+    color: #1e293b;
+    padding: 1.5rem;
+    max-width: 400px;
+    margin: 0 auto;
+  }
+  h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
+  .subtitle { color: #64748b; font-size: 0.85rem; margin-bottom: 1.5rem; }
+  .status {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 1rem;
+    background: white;
+    border-radius: 8px;
+    border: 1px solid #e2e8f0;
+    margin-bottom: 1.5rem;
+  }
+  .dot {
+    width: 16px; height: 16px;
+    border-radius: 50%;
+    background: #94a3b8;
+    flex-shrink: 0;
+  }
+  .dot.on { background: #15803d; box-shadow: 0 0 8px #15803d80; }
+  .field { margin-bottom: 1rem; }
+  label {
+    display: block;
+    font-weight: 600;
+    font-size: 0.85rem;
+    color: #475569;
+    margin-bottom: 0.25rem;
+  }
+  input[type="time"] {
+    width: 100%;
+    padding: 0.6rem;
+    font-size: 1.1rem;
+    border: 1px solid #cbd5e1;
+    border-radius: 6px;
+    background: white;
+  }
+  .toggle {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    margin-bottom: 1.5rem;
+  }
+  .toggle input { width: 20px; height: 20px; }
+  button {
+    width: 100%;
+    padding: 0.75rem;
+    font-size: 1rem;
+    font-weight: 600;
+    color: white;
+    background: #2563eb;
+    border: none;
+    border-radius: 8px;
+    cursor: pointer;
+  }
+  button:active { background: #1d4ed8; }
+  .msg {
+    text-align: center;
+    margin-top: 0.75rem;
+    font-size: 0.85rem;
+    color: #15803d;
+    min-height: 1.2em;
+  }
+</style>
+</head>
+<body>
+  <h1>Herb Garden</h1>
+  <p class="subtitle">herbgarden.local</p>
+
+  <div class="status">
+    <div class="dot" id="dot"></div>
+    <span id="state">Checking...</span>
+  </div>
+
+  <div class="field">
+    <label for="on">Light ON at</label>
+    <input type="time" id="on" value="06:00">
+  </div>
+
+  <div class="field">
+    <label for="off">Light OFF at</label>
+    <input type="time" id="off" value="22:00">
+  </div>
+
+  <div class="toggle">
+    <input type="checkbox" id="enabled" checked>
+    <label for="enabled" style="margin:0;font-weight:normal;">Schedule enabled</label>
+  </div>
+
+  <button onclick="save()">Save Schedule</button>
+  <p class="msg" id="msg"></p>
+
+<script>
+async function poll() {
+  try {
+    const r = await fetch('/status');
+    const d = await r.json();
+    const dot = document.getElementById('dot');
+    const state = document.getElementById('state');
+    dot.className = 'dot' + (d.light_on ? ' on' : '');
+    state.textContent = d.light_on ? 'Light is ON' : 'Light is OFF';
+    if (d.schedule) {
+      document.getElementById('on').value =
+        String(d.schedule.on_hour).padStart(2,'0') + ':' +
+        String(d.schedule.on_minute).padStart(2,'0');
+      document.getElementById('off').value =
+        String(d.schedule.off_hour).padStart(2,'0') + ':' +
+        String(d.schedule.off_minute).padStart(2,'0');
+      document.getElementById('enabled').checked = d.schedule.enabled;
+    }
+  } catch(e) {
+    document.getElementById('state').textContent = 'Offline';
+  }
+}
+
+async function save() {
+  const on = document.getElementById('on').value.split(':');
+  const off = document.getElementById('off').value.split(':');
+  const body = JSON.stringify({
+    on_hour: parseInt(on[0]),
+    on_minute: parseInt(on[1]),
+    off_hour: parseInt(off[0]),
+    off_minute: parseInt(off[1]),
+    enabled: document.getElementById('enabled').checked,
+  });
+  try {
+    const r = await fetch('/schedule', {method:'POST', body:body});
+    const d = await r.json();
+    document.getElementById('msg').textContent = d.ok ? 'Saved!' : d.error;
+    setTimeout(() => document.getElementById('msg').textContent = '', 3000);
+    poll();
+  } catch(e) {
+    document.getElementById('msg').textContent = 'Error saving';
+  }
+}
+
+poll();
+setInterval(poll, 5000);
+</script>
+</body>
+</html>
