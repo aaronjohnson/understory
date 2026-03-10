@@ -7,6 +7,7 @@ Format inspired by the Dwarf Fortress changelog tradition.
 
 ### The Planting
 
+- Named the project `understory` — the shaded layer beneath the canopy, where light is managed
 - Conceived entire project around a single MOSFET and a schedule
 - Selected Adafruit QT Py ESP32-S3 as the brain (4MB flash, WiFi, USB-C, fits in a thimble)
 - Selected STP55NF06L N-channel MOSFET as the muscle (60V/55A for a grow light is like hiring a bodyguard for a hamster)

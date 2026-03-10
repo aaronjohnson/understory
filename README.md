@@ -49,13 +49,13 @@ Estimated total: ~$28
 ## Repository Structure
 
 ```
-herb-garden-controller/
+understory/
 ├── README.md
 ├── CHANGELOG.md
 ├── LICENSE
 ├── docs/
-│   ├── herb-garden-controller.tex    LaTeX source (schematic + docs)
-│   └── (compile: cd docs && xelatex herb-garden-controller.tex)
+│   ├── understory.tex    LaTeX source (schematic + docs)
+│   └── (compile: cd docs && xelatex understory.tex)
 ├── hardware/
 │   └── NOTES.md                      wiring notes, voltage checks
 └── software/
@@ -79,8 +79,8 @@ TeX Live with XeLaTeX and the `circuitikz` package:
 
 ```bash
 cd docs
-xelatex herb-garden-controller.tex
-xelatex herb-garden-controller.tex   # second pass for refs
+xelatex understory.tex
+xelatex understory.tex   # second pass for refs
 ```
 
 The PDF is intentionally not tracked in git (build artifact).
