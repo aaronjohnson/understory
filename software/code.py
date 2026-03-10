@@ -17,11 +17,12 @@ import digitalio
 import wifi
 import socketpool
 import mdns
+import rtc
 import adafruit_ntp
 from adafruit_httpserver import Server, Request, Response
 
 # ── Configuration ──────────────────────────────────────────
-TIMEZONE_OFFSET = -7
+TIMEZONE_OFFSET = int(os.getenv("TIMEZONE_OFFSET", -7))
 HOSTNAME = "herbgarden"
 SCHEDULE_FILE = "/schedule.json"
 
@@ -117,14 +118,16 @@ def should_be_on(now, schedule):
     return False
 
 
+try:
+    with open("/static/index.html", "r") as f:
+        _INDEX_HTML = f.read()
+except OSError:
+    _INDEX_HTML = "<h1>Herb Garden</h1><p>UI not found</p>"
+
+
 def serve_index(request: Request):
-    """Serve the scheduling web UI."""
-    try:
-        with open("/static/index.html", "r") as f:
-            return Response(request, f.read(), content_type="text/html")
-    except OSError:
-        return Response(request, "<h1>Herb Garden</h1><p>UI not found</p>",
-                        content_type="text/html")
+    """Serve the scheduling web UI (cached in RAM)."""
+    return Response(request, _INDEX_HTML, content_type="text/html")
 
 
 def serve_status(request: Request):
@@ -139,7 +142,6 @@ def serve_status(request: Request):
 
 def handle_toggle(request: Request):
     """Toggle light or set explicit state. POST /toggle, /toggle/on, /toggle/off."""
-    global schedule
     path = request.path
     if path == "/toggle/on":
         light.value = True
@@ -248,7 +250,6 @@ print()
 # ── Main Loop ──────────────────────────────────────────────
 # Use local RTC after initial NTP sync — no network calls in the loop.
 # Re-sync NTP every 6 hours to prevent drift.
-import rtc
 last_state = None
 last_ntp_sync = time.monotonic()
 NTP_RESYNC_INTERVAL = 6 * 3600
