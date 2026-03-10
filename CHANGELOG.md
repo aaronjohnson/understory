@@ -3,6 +3,48 @@
 All notable changes to this project will be documented in this file.
 Format inspired by the Dwarf Fortress changelog tradition.
 
+## [0.4.0] - 2026-03-10
+
+### The Listening
+
+- The clock now pays attention to how wrong it is and adjusts
+  accordingly. If it's been accurate, it checks less often. If it
+  drifts, it checks more. Like a responsible adult who sets fewer
+  alarms once they've proven they can wake up
+- This is called "adaptive NTP sync" and it was inspired by Nagle's
+  algorithm, which is a thing from the 1980s that solved a completely
+  different problem but had the right vibes
+- Added a clock status card to the web interface so you can watch
+  the algorithm settle in real time. There's a progress bar and
+  everything. It's more interesting than it sounds
+- The device now keeps a log on its tiny flash drive — boot events,
+  light changes, sync history. Like a ship's log but the ship is
+  a postage stamp and the ocean is your kitchen counter
+- Added quiet hours so the light won't snap on at 3am because a
+  schedule period technically includes that time. The herbs are
+  sleeping. Let them sleep
+- Plant presets! Tell it you're growing basil and it'll suggest
+  14 hours of light. Growing cuttings? 10 hours under a warm lamp.
+  It knows things about plants that we had to look up
+- Added a Farmer's Almanac section because every garden tool should
+  have seasonal wisdom and slightly mystical advice about the moon
+- The version number now appears in the app so you can confirm
+  which version of a grow light scheduler you're running, a sentence
+  that would have confused everyone involved two weeks ago
+- Fixed the time_t overflow that made the device think it was 1970
+  and panic about it. Twice. The fix was to stop asking what year
+  it is until someone reliable answers
+
+### Known Quirks
+
+- Daylight saving time remains unsupported. The herbs will adjust.
+  They're more adaptable than the code
+- The manual toggle still loses to the schedule. This is by design
+  but feels like a character flaw
+- The NTP epsilon (drift tolerance) is configurable from the UI.
+  If you set it to 2 seconds the device will sync constantly and
+  you will have created a very small, very anxious clock
+
 ## [0.3.0] - 2026-03-10
 
 ### The Tending
