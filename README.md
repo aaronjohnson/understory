@@ -55,7 +55,7 @@ herb-garden-controller/
 ├── LICENSE
 ├── docs/
 │   ├── herb-garden-controller.tex    LaTeX source (schematic + docs)
-│   └── herb-garden-controller.pdf    compiled 2-page handout
+│   └── (compile: cd docs && xelatex herb-garden-controller.tex)
 ├── hardware/
 │   └── NOTES.md                      wiring notes, voltage checks
 └── software/
@@ -71,6 +71,19 @@ herb-garden-controller/
 
 Open the grow light base and identify the DC voltage: 12V or 24V.
 This determines your power supply requirements.
+
+## Building the Documentation
+
+The 2-page schematic handout is built from LaTeX source. Requires
+TeX Live with XeLaTeX and the `circuitikz` package:
+
+```bash
+cd docs
+xelatex herb-garden-controller.tex
+xelatex herb-garden-controller.tex   # second pass for refs
+```
+
+The PDF is intentionally not tracked in git (build artifact).
 
 ## License
 
