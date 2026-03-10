@@ -82,6 +82,11 @@ def default_schedule():
     }
 
 
+def local_now():
+    """Get local time by applying timezone offset to UTC."""
+    return time.localtime(time.time() + TIMEZONE_OFFSET * 3600)
+
+
 def in_quiet_hours(now, schedule):
     """Check if current time is within quiet hours."""
     qs = schedule.get("quiet_start", -1)
@@ -210,10 +215,11 @@ except Exception as e:
 
 pool = socketpool.SocketPool(wifi.radio)
 try:
-    ntp = adafruit_ntp.NTP(pool, tz_offset=TIMEZONE_OFFSET)
-    current_time = ntp.datetime
+    ntp = adafruit_ntp.NTP(pool, tz_offset=0)
+    ntp.datetime  # sync RTC to UTC
+    now = local_now()
     print(f"  asking the internet what time it is... "
-          f"{current_time.tm_hour:02d}:{current_time.tm_min:02d}. good.")
+          f"{now.tm_hour:02d}:{now.tm_min:02d}. good.")
 except Exception as e:
     print(f"  time sync failed. we'll guess. ({e})")
     ntp = None
@@ -250,8 +256,8 @@ print("  the garden is open.")
 print()
 
 # ── Main Loop ──────────────────────────────────────────────
-# Use local RTC after initial NTP sync — no network calls in the loop.
-# Re-sync NTP every 6 hours to prevent drift.
+# time.localtime() returns UTC on CircuitPython. We apply the
+# timezone offset ourselves to avoid hitting NTP every second.
 last_state = None
 last_ntp_sync = time.monotonic()
 NTP_RESYNC_INTERVAL = 6 * 3600
@@ -263,7 +269,7 @@ while True:
         print(f"Server poll error: {e}")
 
     try:
-        now = time.localtime()
+        now = local_now()
         new_state = should_be_on(now, schedule)
         light.value = new_state
 
