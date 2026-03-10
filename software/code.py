@@ -246,7 +246,12 @@ print("  the garden is open.")
 print()
 
 # ── Main Loop ──────────────────────────────────────────────
+# Use local RTC after initial NTP sync — no network calls in the loop.
+# Re-sync NTP every 6 hours to prevent drift.
+import rtc
 last_state = None
+last_ntp_sync = time.monotonic()
+NTP_RESYNC_INTERVAL = 6 * 3600
 
 while True:
     try:
@@ -254,17 +259,24 @@ while True:
     except Exception as e:
         print(f"Server poll error: {e}")
 
-    if ntp:
-        try:
-            now = ntp.datetime
-            new_state = should_be_on(now, schedule)
-            light.value = new_state
+    try:
+        now = time.localtime()
+        new_state = should_be_on(now, schedule)
+        light.value = new_state
 
-            if new_state != last_state:
-                state_str = "ON" if new_state else "OFF"
-                print(f"{now.tm_hour:02d}:{now.tm_min:02d} Light {state_str}")
-                last_state = new_state
-        except Exception as e:
-            print(f"Time/schedule error: {e}")
+        if new_state != last_state:
+            state_str = "ON" if new_state else "OFF"
+            print(f"  {now.tm_hour:02d}:{now.tm_min:02d} light {state_str}")
+            last_state = new_state
+    except Exception as e:
+        print(f"  time error: {e}")
+
+    # Periodic NTP re-sync
+    if ntp and (time.monotonic() - last_ntp_sync) > NTP_RESYNC_INTERVAL:
+        try:
+            ntp.datetime  # triggers re-sync, updates RTC
+            last_ntp_sync = time.monotonic()
+        except Exception:
+            pass  # silent — we'll try again next interval
 
     time.sleep(1)
