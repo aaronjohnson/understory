@@ -23,6 +23,7 @@ from adafruit_httpserver import Server, Request, Response
 
 # ── Configuration ──────────────────────────────────────────
 TIMEZONE_OFFSET = int(os.getenv("TIMEZONE_OFFSET", -7))
+VERSION = "0.3.2"
 HOSTNAME = "herbgarden"
 SCHEDULE_FILE = "/schedule.json"
 
@@ -133,6 +134,7 @@ def serve_index(request: Request):
 def serve_status(request: Request):
     """Return current status as JSON."""
     status = {
+        "version": VERSION,
         "light_on": light.value,
         "schedule": schedule,
     }
@@ -180,7 +182,7 @@ def handle_schedule_update(request: Request):
 
 # ── Boot Sequence ──────────────────────────────────────────
 print()
-print("  understory")
+print(f"  understory v{VERSION}")
 print("  how does your garden grow?")
 print()
 

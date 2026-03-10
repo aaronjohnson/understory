@@ -764,6 +764,7 @@ async function poll(){
     txt.textContent = isOn ? 'Light is on' : 'Light is off';
     var np = (d.schedule&&d.schedule.periods)?d.schedule.periods.length:0;
     det.textContent = np + ' period' + (np!==1?'s':'') + (d.schedule&&d.schedule.enabled?'':' \u00b7 paused');
+    if(d.version){ document.getElementById('ver').textContent = 'v'+d.version; }
     if(d.schedule && firstLoad){
       firstLoad = false;
       if(d.schedule.periods && d.schedule.periods.length){
@@ -854,7 +855,7 @@ setTimeout(function(){ document.getElementById('controlsSection').classList.add(
 </script>
 
 <footer style="text-align:center;margin:2rem 0 0;padding:1rem;font-size:0.7rem;font-family:'Courier New',monospace;color:var(--terra);opacity:0.6">
-  <a href="https://github.com/aaronjohnson/understory" style="color:inherit">understory</a> · herbgarden.local
+  <a href="https://github.com/aaronjohnson/understory" style="color:inherit">understory</a> <span id="ver"></span> · herbgarden.local
 </footer>
 </body>
 </html>
