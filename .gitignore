@@ -9,6 +9,14 @@ docs/*.fdb_latexmk
 # CircuitPython secrets — never commit real credentials
 software/settings.toml
 
+# Firmware binaries — downloadable from circuitpython.org
+*.bin
+*.uf2
+
+# Session artifacts
+resume.txt
+cp_root_attempt.sh
+
 # OS junk
 .DS_Store
 Thumbs.db

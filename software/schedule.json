@@ -1,7 +1,8 @@
 {
-    "on_hour": 6,
-    "on_minute": 0,
-    "off_hour": 22,
-    "off_minute": 0,
-    "enabled": true
+    "periods": [
+        {"on_hour": 6, "on_minute": 0, "off_hour": 22, "off_minute": 0}
+    ],
+    "enabled": true,
+    "quiet_start": 23,
+    "quiet_end": 5
 }

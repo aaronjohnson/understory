@@ -5,151 +5,856 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Herb Garden</title>
 <style>
-  * { box-sizing: border-box; margin: 0; padding: 0; }
-  body {
-    font-family: -apple-system, sans-serif;
-    background: #f8fafc;
-    color: #1e293b;
-    padding: 1.5rem;
-    max-width: 400px;
-    margin: 0 auto;
+  :root {
+    --cream: #f4edd8;
+    --parchment: #ebe3cc;
+    --moss: #2d4a2e;
+    --moss-light: #3d6b3e;
+    --fern: #5a8a5c;
+    --terra: #b8704b;
+    --terra-dark: #8e5535;
+    --bark: #4a3728;
+    --soil: #3b2e22;
+    --gold: #d4a54a;
+    --gold-dim: #b8923f;
+    --shade: rgba(59,46,34,0.08);
   }
-  h1 { font-size: 1.5rem; margin-bottom: 0.25rem; }
-  .subtitle { color: #64748b; font-size: 0.85rem; margin-bottom: 1.5rem; }
-  .status {
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: Georgia, 'Times New Roman', serif;
+    background: var(--cream);
+    background-image:
+      radial-gradient(ellipse at 20% 0%, rgba(90,138,92,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 100%, rgba(184,112,75,0.06) 0%, transparent 50%);
+    color: var(--bark);
+    min-height: 100vh;
+    padding: 0 0 3rem;
+  }
+
+  header {
+    background: var(--moss);
+    background-image: linear-gradient(170deg, var(--moss) 40%, var(--moss-light) 100%);
+    padding: 1.75rem 1.5rem 1.5rem;
+    color: var(--cream);
+    position: relative;
+    overflow: hidden;
+  }
+  header::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0; right: 0;
+    height: 18px;
+    background: var(--cream);
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 18'%3E%3Cpath d='M0 18 Q25 0 50 18 Q75 0 100 18 Q125 0 150 18 Q175 0 200 18 Q225 0 250 18 Q275 0 300 18 Q325 0 350 18 Q375 0 400 18 Z'/%3E%3C/svg%3E");
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 18'%3E%3Cpath d='M0 18 Q25 0 50 18 Q75 0 100 18 Q125 0 150 18 Q175 0 200 18 Q225 0 250 18 Q275 0 300 18 Q325 0 350 18 Q375 0 400 18 Z'/%3E%3C/svg%3E");
+    mask-size: 200px 18px;
+    -webkit-mask-size: 200px 18px;
+  }
+
+  h1 {
+    font-size: 1.6rem;
+    font-weight: normal;
+    letter-spacing: 0.04em;
+    font-style: italic;
+  }
+  .host {
+    font-family: 'Courier New', monospace;
+    font-size: 0.72rem;
+    opacity: 0.6;
+    margin-top: 0.3rem;
+    letter-spacing: 0.03em;
+  }
+  .almanac {
+    font-style: italic;
+    font-size: 0.82rem;
+    opacity: 0.75;
+    margin-top: 0.6rem;
+    line-height: 1.4;
+    border-top: 1px solid rgba(244,237,216,0.15);
+    padding-top: 0.6rem;
+  }
+
+  main { max-width: 420px; margin: 0 auto; padding: 1.25rem 1.25rem 0; }
+
+  /* ── Status Card ── */
+  .status-card {
+    background: white;
+    border: 1.5px solid var(--parchment);
+    border-radius: 10px;
+    padding: 1.1rem 1.2rem;
+    margin-bottom: 1.5rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 2px 8px var(--shade);
+    transition: border-color 0.6s ease;
+  }
+  .status-card.on { border-color: var(--fern); }
+
+  .sun {
+    width: 42px; height: 42px;
+    border-radius: 50%;
+    background: #ccc;
+    flex-shrink: 0;
+    transition: all 0.8s ease;
+    position: relative;
+  }
+  .sun.on {
+    background: var(--gold);
+    box-shadow:
+      0 0 12px rgba(212,165,74,0.5),
+      0 0 30px rgba(212,165,74,0.2);
+    animation: pulse 3s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 12px rgba(212,165,74,0.5), 0 0 30px rgba(212,165,74,0.2); }
+    50% { box-shadow: 0 0 18px rgba(212,165,74,0.7), 0 0 40px rgba(212,165,74,0.3); }
+  }
+  .sun.off {
+    background: var(--parchment);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.08);
+  }
+
+  .status-text {
+    font-size: 1.05rem;
+    font-style: italic;
+    color: var(--bark);
+    transition: opacity 0.4s;
+  }
+  .status-text small {
+    display: block;
+    font-style: normal;
+    font-family: 'Courier New', monospace;
+    font-size: 0.7rem;
+    color: var(--terra);
+    margin-top: 0.2rem;
+    opacity: 0.8;
+  }
+
+  /* ── Section Headers ── */
+  .section-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.75rem;
+  }
+  .section-title {
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--terra-dark);
+    font-weight: normal;
+  }
+
+  /* ── Period Cards ── */
+  .periods { display: flex; flex-direction: column; gap: 0.75rem; }
+
+  .period {
+    background: white;
+    border: 1.5px solid var(--parchment);
+    border-radius: 10px;
+    padding: 1rem 1rem 0.9rem;
+    box-shadow: 0 2px 8px var(--shade);
+    position: relative;
+    animation: slideIn 0.35s ease-out;
+    transition: opacity 0.3s, transform 0.3s;
+  }
+  .period.removing {
+    opacity: 0;
+    transform: translateX(30px) scale(0.95);
+  }
+  @keyframes slideIn {
+    from { opacity: 0; transform: translateY(12px); }
+    to { opacity: 1; transform: translateY(0); }
+  }
+
+  .period-num {
+    position: absolute;
+    top: -0.5rem;
+    left: 0.9rem;
+    background: var(--moss);
+    color: var(--cream);
+    font-size: 0.6rem;
+    font-family: 'Courier New', monospace;
+    padding: 0.1rem 0.5rem;
+    border-radius: 3px;
+    letter-spacing: 0.08em;
+  }
+
+  .period-row {
+    display: flex;
+    gap: 0.6rem;
+    align-items: end;
+  }
+  .period-field { flex: 1; }
+  .period-field label {
+    display: block;
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    color: var(--fern);
+    margin-bottom: 0.25rem;
+    font-family: 'Courier New', monospace;
+  }
+  .period-field input[type="time"] {
+    width: 100%;
+    padding: 0.55rem 0.5rem;
+    font-size: 1.05rem;
+    font-family: Georgia, serif;
+    border: 1.5px solid var(--parchment);
+    border-radius: 6px;
+    background: var(--cream);
+    color: var(--bark);
+    transition: border-color 0.2s;
+  }
+  .period-field input:focus {
+    outline: none;
+    border-color: var(--fern);
+  }
+
+  .remove-btn {
+    flex-shrink: 0;
+    width: 34px; height: 34px;
+    border: 1.5px solid var(--parchment);
+    border-radius: 6px;
+    background: white;
+    color: var(--terra);
+    font-size: 1.1rem;
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s;
+    margin-bottom: 1px;
+  }
+  .remove-btn:hover { background: #fdf0f0; border-color: var(--terra); }
+
+  .add-btn {
+    width: 100%;
+    padding: 0.7rem;
+    margin-top: 0.75rem;
+    font-family: Georgia, serif;
+    font-size: 0.9rem;
+    font-style: italic;
+    color: var(--fern);
+    background: transparent;
+    border: 1.5px dashed var(--fern);
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.25s;
+  }
+  .add-btn:hover { background: rgba(90,138,92,0.06); border-style: solid; }
+
+  /* ── Toggle ── */
+  .toggle-row {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 1rem;
-    background: white;
-    border-radius: 8px;
-    border: 1px solid #e2e8f0;
-    margin-bottom: 1.5rem;
+    margin: 1.5rem 0 1.25rem;
+    padding: 0 0.1rem;
   }
-  .dot {
-    width: 16px; height: 16px;
-    border-radius: 50%;
-    background: #94a3b8;
+  .switch {
+    position: relative;
+    width: 44px; height: 24px;
     flex-shrink: 0;
   }
-  .dot.on { background: #15803d; box-shadow: 0 0 8px #15803d80; }
-  .field { margin-bottom: 1rem; }
-  label {
-    display: block;
-    font-weight: 600;
-    font-size: 0.85rem;
-    color: #475569;
-    margin-bottom: 0.25rem;
+  .switch input { opacity: 0; width: 0; height: 0; }
+  .slider {
+    position: absolute;
+    inset: 0;
+    background: var(--parchment);
+    border-radius: 12px;
+    cursor: pointer;
+    transition: background 0.3s;
+    border: 1.5px solid rgba(0,0,0,0.08);
   }
-  input[type="time"] {
-    width: 100%;
-    padding: 0.6rem;
-    font-size: 1.1rem;
-    border: 1px solid #cbd5e1;
-    border-radius: 6px;
+  .slider::before {
+    content: '';
+    position: absolute;
+    width: 18px; height: 18px;
+    left: 2px; bottom: 2px;
     background: white;
+    border-radius: 50%;
+    transition: transform 0.3s;
+    box-shadow: 0 1px 3px rgba(0,0,0,0.15);
   }
-  .toggle {
+  .switch input:checked + .slider { background: var(--fern); border-color: var(--moss); }
+  .switch input:checked + .slider::before { transform: translateX(20px); }
+  .toggle-label {
+    font-size: 0.88rem;
+    color: var(--bark);
+  }
+
+  /* ── Save Button ── */
+  .save-btn {
+    width: 100%;
+    padding: 0.85rem;
+    font-family: Georgia, serif;
+    font-size: 1rem;
+    letter-spacing: 0.04em;
+    color: var(--cream);
+    background: var(--moss);
+    background-image: linear-gradient(170deg, var(--moss) 30%, var(--moss-light) 100%);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .save-btn:active { transform: scale(0.98); }
+  .save-btn:hover { box-shadow: 0 4px 14px rgba(45,74,46,0.3); }
+
+  .save-btn.saved {
+    background: var(--fern);
+    background-image: none;
+  }
+
+  @keyframes confirmRipple {
+    0% { transform: translate(-50%,-50%) scale(0); opacity: 0.4; }
+    100% { transform: translate(-50%,-50%) scale(4); opacity: 0; }
+  }
+  .ripple {
+    position: absolute;
+    width: 100px; height: 100px;
+    border-radius: 50%;
+    background: rgba(255,255,255,0.3);
+    pointer-events: none;
+    animation: confirmRipple 0.6s ease-out forwards;
+  }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--soil);
+    color: var(--cream);
+    padding: 0.65rem 1.4rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-style: italic;
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+    z-index: 10;
+    white-space: nowrap;
+  }
+  .toast.show {
+    opacity: 1;
+    transform: translateX(-50%) translateY(0);
+  }
+  .toast.error { background: var(--terra-dark); }
+
+  /* ── Progressive reveal ── */
+  .reveal { opacity: 0; transform: translateY(8px); transition: opacity 0.6s ease, transform 0.6s ease; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+
+  .schedule-section { transition: opacity 0.8s ease 0.3s; }
+  .controls-section { transition: opacity 0.8s ease 0.6s; }
+
+  /* ── Presets ── */
+  .presets { margin-bottom: 1.5rem; }
+  .preset-toggle {
     display: flex;
     align-items: center;
     gap: 0.5rem;
-    margin-bottom: 1.5rem;
-  }
-  .toggle input { width: 20px; height: 20px; }
-  button {
-    width: 100%;
-    padding: 0.75rem;
-    font-size: 1rem;
-    font-weight: 600;
-    color: white;
-    background: #2563eb;
-    border: none;
-    border-radius: 8px;
     cursor: pointer;
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--terra-dark);
+    background: none;
+    border: none;
+    font-family: Georgia, serif;
+    padding: 0;
+    margin-bottom: 0.6rem;
   }
-  button:active { background: #1d4ed8; }
-  .msg {
+  .preset-toggle .arrow {
+    font-size: 0.6rem;
+    transition: transform 0.3s;
+    display: inline-block;
+  }
+  .preset-toggle.open .arrow { transform: rotate(90deg); }
+
+  .preset-drawer {
+    max-height: 0;
+    overflow: hidden;
+    transition: max-height 0.4s ease;
+  }
+  .preset-drawer.open { max-height: 600px; }
+
+  .preset-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 0.5rem;
+  }
+  .preset-card {
+    background: white;
+    border: 1.5px solid var(--parchment);
+    border-radius: 8px;
+    padding: 0.7rem 0.9rem;
+    cursor: pointer;
+    transition: all 0.25s;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+  }
+  .preset-card:hover { border-color: var(--fern); background: rgba(90,138,92,0.03); }
+  .preset-card:active { transform: scale(0.98); }
+
+  .preset-icon {
+    font-size: 1.3rem;
+    flex-shrink: 0;
+    width: 2rem;
     text-align: center;
-    margin-top: 0.75rem;
-    font-size: 0.85rem;
-    color: #15803d;
-    min-height: 1.2em;
+  }
+  .preset-info { flex: 1; }
+  .preset-name {
+    font-size: 0.9rem;
+    font-weight: normal;
+    color: var(--bark);
+  }
+  .preset-desc {
+    font-size: 0.68rem;
+    font-family: 'Courier New', monospace;
+    color: var(--terra);
+    margin-top: 0.15rem;
+    opacity: 0.8;
+  }
+  .preset-hours {
+    font-size: 0.7rem;
+    font-family: 'Courier New', monospace;
+    color: var(--fern);
+    flex-shrink: 0;
+  }
+
+  /* ── Quiet hours ── */
+  .quiet-card {
+    background: var(--soil);
+    color: var(--cream);
+    border-radius: 10px;
+    padding: 0.9rem 1rem;
+    margin-top: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 0.8rem;
+  }
+  .quiet-icon { font-size: 1.2rem; flex-shrink: 0; opacity: 0.7; }
+  .quiet-info { flex: 1; }
+  .quiet-label {
+    font-size: 0.7rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-family: 'Courier New', monospace;
+    opacity: 0.6;
+    margin-bottom: 0.3rem;
+  }
+  .quiet-times { display: flex; gap: 0.5rem; align-items: center; }
+  .quiet-times input[type="number"] {
+    width: 3.5rem;
+    padding: 0.35rem 0.4rem;
+    font-size: 0.95rem;
+    font-family: Georgia, serif;
+    border: 1px solid rgba(244,237,216,0.2);
+    border-radius: 5px;
+    background: rgba(255,255,255,0.1);
+    color: var(--cream);
+    text-align: center;
+  }
+  .quiet-times input:focus { outline: none; border-color: rgba(244,237,216,0.4); }
+  .quiet-sep { opacity: 0.4; font-size: 0.8rem; }
+
+  /* ── Gap between periods ── */
+  .gap-row {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 0.3rem 0;
+    font-size: 0.7rem;
+    font-family: 'Courier New', monospace;
+    color: var(--terra);
+    opacity: 0.5;
+  }
+  .gap-line {
+    flex: 1;
+    height: 1px;
+    background: var(--parchment);
   }
 </style>
 </head>
 <body>
+
+<header>
   <h1>Herb Garden</h1>
-  <p class="subtitle">herbgarden.local</p>
+  <div class="host">herbgarden.local</div>
+  <div class="almanac" id="almanac"></div>
+</header>
 
-  <div class="status">
-    <div class="dot" id="dot"></div>
-    <span id="state">Checking...</span>
+<main>
+  <div class="status-card" id="statusCard" onclick="toggle()" style="cursor:pointer">
+    <div class="sun" id="sun"></div>
+    <div class="status-text">
+      <span id="stateText">Checking...</span>
+      <small id="stateDetail">tap to toggle</small>
+    </div>
   </div>
 
-  <div class="field">
-    <label for="on">Light ON at</label>
-    <input type="time" id="on" value="06:00">
+  <div class="presets reveal" id="presetsSection">
+    <button class="preset-toggle" id="presetToggle" onclick="togglePresets()">
+      <span class="arrow">&#9654;</span> What are you growing?
+    </button>
+    <div class="preset-drawer" id="presetDrawer">
+      <div class="preset-grid" id="presetGrid"></div>
+    </div>
   </div>
 
-  <div class="field">
-    <label for="off">Light OFF at</label>
-    <input type="time" id="off" value="22:00">
+  <div class="schedule-section reveal" id="scheduleSection">
+    <div class="section-head">
+      <span class="section-title">Light Schedule</span>
+    </div>
+
+    <div class="periods" id="periods"></div>
+    <button class="add-btn" onclick="addPeriod()">+ add period</button>
+
+    <div class="quiet-card">
+      <div class="quiet-icon">&#x1F319;</div>
+      <div class="quiet-info">
+        <div class="quiet-label">Quiet hours &mdash; light never on</div>
+        <div class="quiet-times">
+          <input type="number" id="quietStart" min="0" max="23" value="23">
+          <span class="quiet-sep">:00 to</span>
+          <input type="number" id="quietEnd" min="0" max="23" value="5">
+          <span class="quiet-sep">:00</span>
+        </div>
+      </div>
+    </div>
   </div>
 
-  <div class="toggle">
-    <input type="checkbox" id="enabled" checked>
-    <label for="enabled" style="margin:0;font-weight:normal;">Schedule enabled</label>
-  </div>
+  <div class="controls-section reveal" id="controlsSection">
+    <div class="toggle-row">
+      <label class="switch">
+        <input type="checkbox" id="enabled" checked>
+        <span class="slider"></span>
+      </label>
+      <span class="toggle-label">Schedule enabled</span>
+    </div>
 
-  <button onclick="save()">Save Schedule</button>
-  <p class="msg" id="msg"></p>
+    <button class="save-btn" id="saveBtn" onclick="save()">Save Changes</button>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
 
 <script>
-async function poll() {
-  try {
-    const r = await fetch('/status');
-    const d = await r.json();
-    const dot = document.getElementById('dot');
-    const state = document.getElementById('state');
-    dot.className = 'dot' + (d.light_on ? ' on' : '');
-    state.textContent = d.light_on ? 'Light is ON' : 'Light is OFF';
-    if (d.schedule) {
-      document.getElementById('on').value =
-        String(d.schedule.on_hour).padStart(2,'0') + ':' +
-        String(d.schedule.on_minute).padStart(2,'0');
-      document.getElementById('off').value =
-        String(d.schedule.off_hour).padStart(2,'0') + ':' +
-        String(d.schedule.off_minute).padStart(2,'0');
-      document.getElementById('enabled').checked = d.schedule.enabled;
+var periods = [{on_hour:6,on_minute:0,off_hour:22,off_minute:0}];
+var firstLoad = true;
+
+// ── Presets ──
+var PRESETS = [
+  {
+    name: 'Seedlings',
+    desc: 'Long days for young starts. Encourages strong stems.',
+    icon: '\u{1F331}',
+    hours: 16,
+    periods: [{on_hour:5,on_minute:0,off_hour:21,off_minute:0}]
+  },
+  {
+    name: 'Cuttings in water',
+    desc: 'Gentle light while roots form. Less is more.',
+    icon: '\u{1FAB4}',
+    hours: 10,
+    periods: [{on_hour:8,on_minute:0,off_hour:18,off_minute:0}]
+  },
+  {
+    name: 'Leafy herbs',
+    desc: 'Basil, cilantro, parsley. Good production light.',
+    icon: '\u{1F33F}',
+    hours: 14,
+    periods: [{on_hour:6,on_minute:0,off_hour:20,off_minute:0}]
+  },
+  {
+    name: 'Woody herbs',
+    desc: 'Rosemary, thyme, oregano. Mediterranean rhythm.',
+    icon: '\u{1FAB5}',
+    hours: 12,
+    periods: [{on_hour:7,on_minute:0,off_hour:19,off_minute:0}]
+  },
+  {
+    name: 'Siesta schedule',
+    desc: 'Split light with midday rest. Mimics dappled shade.',
+    icon: '\u{26C5}',
+    hours: 12,
+    periods: [
+      {on_hour:6,on_minute:0,off_hour:12,off_minute:0},
+      {on_hour:14,on_minute:0,off_hour:20,off_minute:0}
+    ]
+  },
+  {
+    name: 'Winter boost',
+    desc: 'Maximum light for short winter days.',
+    icon: '\u{2744}\u{FE0F}',
+    hours: 16,
+    periods: [{on_hour:4,on_minute:30,off_hour:20,off_minute:30}]
+  }
+];
+
+function renderPresets(){
+  var grid = document.getElementById('presetGrid');
+  grid.innerHTML = '';
+  for(var i=0; i<PRESETS.length; i++){
+    var pr = PRESETS[i];
+    var card = document.createElement('div');
+    card.className = 'preset-card';
+    card.setAttribute('onclick','applyPreset('+i+')');
+    card.innerHTML =
+      '<div class="preset-icon">'+pr.icon+'</div>'+
+      '<div class="preset-info">'+
+        '<div class="preset-name">'+pr.name+'</div>'+
+        '<div class="preset-desc">'+pr.desc+'</div>'+
+      '</div>'+
+      '<div class="preset-hours">'+pr.hours+'h</div>';
+    grid.appendChild(card);
+  }
+}
+
+function togglePresets(){
+  var btn = document.getElementById('presetToggle');
+  var drawer = document.getElementById('presetDrawer');
+  btn.classList.toggle('open');
+  drawer.classList.toggle('open');
+}
+
+function applyPreset(i){
+  var pr = PRESETS[i];
+  periods = JSON.parse(JSON.stringify(pr.periods));
+  renderPeriods();
+  togglePresets();
+  showToast(pr.name+' \u2014 '+pr.hours+'h light');
+}
+
+function pad(n){ return String(n).padStart(2,'0'); }
+
+var GAP = 60; // minutes between suggested periods
+
+function toMin(h,m){ return h*60+m; }
+function fromMin(m){ m=((m%1440)+1440)%1440; return {h:Math.floor(m/60),m:m%60}; }
+
+function gapLabel(minA, minB){
+  var diff = minB - minA;
+  if(diff <= 0) return '';
+  var h = Math.floor(diff/60), m = diff%60;
+  if(h > 0 && m > 0) return h+'h '+m+'m rest';
+  if(h > 0) return h+'h rest';
+  return m+'m rest';
+}
+
+function renderPeriods(){
+  // sort periods by on-time for display
+  var sorted = periods.map(function(p,i){ return {p:p,i:i}; });
+  sorted.sort(function(a,b){ return toMin(a.p.on_hour,a.p.on_minute) - toMin(b.p.on_hour,b.p.on_minute); });
+
+  var c = document.getElementById('periods');
+  c.innerHTML = '';
+  for(var si=0; si<sorted.length; si++){
+    var p = sorted[si].p;
+    var idx = sorted[si].i;
+
+    // show gap between periods
+    if(si > 0){
+      var prevOff = toMin(sorted[si-1].p.off_hour, sorted[si-1].p.off_minute);
+      var thisOn = toMin(p.on_hour, p.on_minute);
+      var gap = gapLabel(prevOff, thisOn);
+      if(gap){
+        var g = document.createElement('div');
+        g.className = 'gap-row';
+        g.innerHTML = '<span class="gap-line"></span><span>'+gap+'</span><span class="gap-line"></span>';
+        c.appendChild(g);
+      }
     }
-  } catch(e) {
-    document.getElementById('state').textContent = 'Offline';
-  }
-}
 
-async function save() {
-  const on = document.getElementById('on').value.split(':');
-  const off = document.getElementById('off').value.split(':');
-  const body = JSON.stringify({
-    on_hour: parseInt(on[0]),
-    on_minute: parseInt(on[1]),
-    off_hour: parseInt(off[0]),
-    off_minute: parseInt(off[1]),
-    enabled: document.getElementById('enabled').checked,
+    var d = document.createElement('div');
+    d.className = 'period';
+    d.innerHTML =
+      '<div class="period-num">period '+(si+1)+'</div>'+
+      '<div class="period-row">'+
+        '<div class="period-field">'+
+          '<label>On</label>'+
+          '<input type="time" data-i="'+idx+'" data-f="on" value="'+pad(p.on_hour)+':'+pad(p.on_minute)+'">'+
+        '</div>'+
+        '<div class="period-field">'+
+          '<label>Off</label>'+
+          '<input type="time" data-i="'+idx+'" data-f="off" value="'+pad(p.off_hour)+':'+pad(p.off_minute)+'">'+
+        '</div>'+
+        (periods.length>1?'<button class="remove-btn" onclick="removePeriod('+idx+')">&times;</button>':'')+
+      '</div>';
+    c.appendChild(d);
+  }
+  c.querySelectorAll('input[type=time]').forEach(function(inp){
+    inp.addEventListener('change', function(){
+      var idx = parseInt(this.dataset.i);
+      var parts = this.value.split(':');
+      if(this.dataset.f==='on'){
+        periods[idx].on_hour = parseInt(parts[0]);
+        periods[idx].on_minute = parseInt(parts[1]);
+      } else {
+        periods[idx].off_hour = parseInt(parts[0]);
+        periods[idx].off_minute = parseInt(parts[1]);
+      }
+      renderPeriods(); // re-render to update gaps
+    });
   });
-  try {
-    const r = await fetch('/schedule', {method:'POST', body:body});
-    const d = await r.json();
-    document.getElementById('msg').textContent = d.ok ? 'Saved!' : d.error;
-    setTimeout(() => document.getElementById('msg').textContent = '', 3000);
-    poll();
-  } catch(e) {
-    document.getElementById('msg').textContent = 'Error saving';
+}
+
+function suggestNext(){
+  // find the latest off-time and suggest GAP minutes after it
+  var latest = 0;
+  for(var i=0; i<periods.length; i++){
+    var off = toMin(periods[i].off_hour, periods[i].off_minute);
+    if(off > latest) latest = off;
+  }
+  var onMin = latest + GAP;
+  var offMin = onMin + 180; // default 3 hour period
+  if(offMin > 1380) offMin = 1380; // cap at 23:00
+  if(onMin >= 1380) { onMin = 480; offMin = 660; } // fallback: 8:00-11:00
+  var on = fromMin(onMin), off = fromMin(offMin);
+  return {on_hour:on.h, on_minute:on.m, off_hour:off.h, off_minute:off.m};
+}
+
+function addPeriod(){
+  periods.push(suggestNext());
+  renderPeriods();
+}
+
+function removePeriod(i){
+  var els = document.querySelectorAll('.period');
+  if(els[i]){
+    els[i].classList.add('removing');
+    setTimeout(function(){
+      periods.splice(i,1);
+      renderPeriods();
+    }, 300);
   }
 }
 
+function showToast(msg, isError){
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError?' error':'');
+  setTimeout(function(){ t.classList.add('show'); }, 10);
+  setTimeout(function(){ t.classList.remove('show'); }, 2800);
+}
+
+async function poll(){
+  try {
+    var r = await fetch('/status');
+    var d = await r.json();
+    var sun = document.getElementById('sun');
+    var card = document.getElementById('statusCard');
+    var txt = document.getElementById('stateText');
+    var det = document.getElementById('stateDetail');
+    var isOn = d.light_on;
+    sun.className = 'sun ' + (isOn?'on':'off');
+    card.className = 'status-card' + (isOn?' on':'');
+    txt.textContent = isOn ? 'Light is on' : 'Light is off';
+    var np = (d.schedule&&d.schedule.periods)?d.schedule.periods.length:0;
+    det.textContent = np + ' period' + (np!==1?'s':'') + (d.schedule&&d.schedule.enabled?'':' \u00b7 paused');
+    if(d.schedule && firstLoad){
+      firstLoad = false;
+      if(d.schedule.periods && d.schedule.periods.length){
+        periods = d.schedule.periods;
+      }
+      document.getElementById('enabled').checked = d.schedule.enabled !== false;
+      if(d.schedule.quiet_start !== undefined) document.getElementById('quietStart').value = d.schedule.quiet_start;
+      if(d.schedule.quiet_end !== undefined) document.getElementById('quietEnd').value = d.schedule.quiet_end;
+      renderPeriods();
+    }
+  } catch(e){
+    document.getElementById('stateText').textContent = 'Offline';
+    document.getElementById('stateDetail').textContent = '';
+  }
+}
+
+async function save(){
+  var btn = document.getElementById('saveBtn');
+  var body = JSON.stringify({
+    periods: periods,
+    enabled: document.getElementById('enabled').checked,
+    quiet_start: parseInt(document.getElementById('quietStart').value),
+    quiet_end: parseInt(document.getElementById('quietEnd').value)
+  });
+  btn.textContent = 'Saving...';
+  try {
+    var r = await fetch('/schedule',{method:'POST',body:body});
+    var d = await r.json();
+    if(d.ok){
+      btn.textContent = 'Saved';
+      btn.classList.add('saved');
+      var rip = document.createElement('span');
+      rip.className='ripple';
+      rip.style.left='50%';
+      rip.style.top='50%';
+      btn.appendChild(rip);
+      setTimeout(function(){ rip.remove(); },600);
+      showToast('Schedule updated');
+      poll();
+    } else {
+      showToast(d.error||'Error', true);
+    }
+  } catch(e){
+    showToast('Could not reach device', true);
+  }
+  setTimeout(function(){
+    btn.textContent = 'Save Changes';
+    btn.classList.remove('saved');
+  }, 2000);
+}
+
+async function toggle(){
+  try {
+    var r = await fetch('/toggle',{method:'POST'});
+    var d = await r.json();
+    showToast(d.light_on ? 'Light on' : 'Light off');
+    poll();
+  } catch(e){ showToast('Could not reach device', true); }
+}
+
+// ── Farmer's Almanac ──
+var ALMANAC = [
+  'How does your garden grow? The seed catalogs arrive in January. Plan what to grow under lights while the ground sleeps.',
+  'How does your garden grow? Start seeds indoors in February. Long light, warm soil. The garden begins at the kitchen table.',
+  'How does your garden grow? The equinox nears. Seedlings stretch toward any light you give them.',
+  'How does your garden grow? Harden off what you started. The window light returns, but the grow light keeps the night shift.',
+  'How does your garden grow? Transplant season. The indoor garden thins as the outdoor garden fills.',
+  'How does your garden grow? Longest days of June. Indoor herbs still want their 14 hours. The sun does most of the work now.',
+  'How does your garden grow? Heat of summer. Basil thrives. Water in the morning. The grow light rests easy.',
+  'How does your garden grow? Second sowings for fall. Cilantro bolts in heat\u2014start a new round under lights.',
+  'How does your garden grow? Days shorten in September. The grow light picks up where the sun leaves off.',
+  'How does your garden grow? Bring the tender herbs in. Rosemary by the window, basil under the light.',
+  'How does your garden grow? Dark months begin. The grow light earns its keep. 14\u201316 hours for leafy herbs.',
+  'How does your garden grow? Midwinter. Shortest days. The herbs don\u2019t know it\u2014the light keeps their summer going.'
+];
+var alEl = document.getElementById('almanac');
+if(alEl) alEl.textContent = ALMANAC[new Date().getMonth()];
+
+renderPresets();
+renderPeriods();
 poll();
 setInterval(poll, 5000);
+
+// progressive reveal
+setTimeout(function(){ document.getElementById('presetsSection').classList.add('visible'); }, 300);
+setTimeout(function(){ document.getElementById('scheduleSection').classList.add('visible'); }, 600);
+setTimeout(function(){ document.getElementById('controlsSection').classList.add('visible'); }, 900);
 </script>
+
+<footer style="text-align:center;margin:2rem 0 0;padding:1rem;font-size:0.7rem;font-family:'Courier New',monospace;color:var(--terra);opacity:0.6">
+  <a href="https://github.com/aaronjohnson/understory" style="color:inherit">understory</a> · herbgarden.local
+</footer>
 </body>
 </html>
