@@ -107,11 +107,15 @@ def default_schedule():
 
 
 def local_now():
-    """Get local time by applying timezone offset to UTC."""
+    """Get local time. Uses NTP monotonic offset (no network call)."""
+    if ntp:
+        try:
+            return ntp.datetime
+        except Exception:
+            pass
+    # Fallback: offset from RTC (may be UTC if NTP never synced)
     utc = time.time()
-    offset = TIMEZONE_OFFSET * 3600
-    # Avoid time_t overflow on CircuitPython (epoch is 2020, 32-bit)
-    local_epoch = utc + offset
+    local_epoch = utc + TIMEZONE_OFFSET * 3600
     if local_epoch < 0:
         local_epoch = 0
     return time.localtime(local_epoch)
@@ -208,25 +212,28 @@ class AdaptiveClock:
 
     def _do_sync(self):
         try:
-            rtc_before = time.time()
-            self.ntp.datetime          # network call — syncs RTC to UTC
-            rtc_after = time.time()
-            drift = rtc_after - rtc_before  # rough: includes network latency
-            # Better drift measure: compare old RTC to new NTP truth
-            # drift ≈ how far the old clock was off
-            self.last_drift = abs(rtc_after - rtc_before)
+            # Snapshot current time before sync (monotonic-based, no network)
+            before_ns = self.ntp.utc_ns
 
-            # The real drift is how much the RTC moved during sync.
-            # If RTC was accurate, the jump is just network round-trip (~0.1s).
-            # If RTC had drifted, the jump is larger.
-            # We use a simpler heuristic: measure time.time() before NTP sync,
-            # then after. The difference minus expected network time (~0.5s)
-            # approximates drift. But on first sync this is unreliable.
-            # Better: track how much the clock jumps.
-            drift_secs = abs(rtc_after - rtc_before)
+            # Force a fresh NTP query by resetting the cache
+            self.ntp.next_sync = 0
+            _ = self.ntp.datetime  # triggers network call
+
+            # Snapshot after sync
+            after_ns = self.ntp.utc_ns
+
+            # Drift = how much the clock jumped (minus ~network latency)
+            # If clock was perfect, jump ≈ 0 (just round-trip time ~0.1-0.5s)
+            # If clock had drifted, the jump is larger
+            drift_secs = abs(after_ns - before_ns) / 1_000_000_000
+            # Subtract a rough network round-trip estimate
+            drift_secs = max(0, drift_secs - 0.5)
+            self.last_drift = drift_secs
 
             self.syncs += 1
             self.last_sync = time.monotonic()
+            # Keep cache large so ntp.datetime reads don't trigger network calls
+            self.ntp.next_sync = time.monotonic_ns() + 999999 * 1_000_000_000
 
             # Adaptive interval
             old_interval = self.interval
@@ -391,13 +398,14 @@ except Exception as e:
 pool = socketpool.SocketPool(wifi.radio)
 ntp = None
 try:
-    ntp = adafruit_ntp.NTP(pool, tz_offset=0)
-    ntp.datetime  # initial sync — RTC to UTC
-    now = local_now()
+    ntp = adafruit_ntp.NTP(pool, tz_offset=TIMEZONE_OFFSET,
+                           cache_seconds=999999)
+    now = ntp.datetime
     print(f"  asking the internet what time it is... "
           f"{now.tm_hour:02d}:{now.tm_min:02d}. good.")
 except Exception as e:
     print(f"  time sync failed. we'll guess. ({e})")
+    ntp = None
 
 clock = AdaptiveClock(ntp)
 
