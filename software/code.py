@@ -23,7 +23,7 @@ from adafruit_httpserver import Server, Request, Response
 
 # ── Configuration ──────────────────────────────────────────
 TIMEZONE_OFFSET = int(os.getenv("TIMEZONE_OFFSET", -7))
-VERSION = "0.3.2"
+VERSION = "0.4.0"
 HOSTNAME = "herbgarden"
 SCHEDULE_FILE = "/schedule.json"
 
@@ -124,6 +124,129 @@ def should_be_on(now, schedule):
     return False
 
 
+# ── Adaptive Clock ─────────────────────────────────────────
+# Nagle-style NTP sync: starts frequent, backs off when drift is low,
+# tightens when drift is high. Periodic probe prevents stale assumptions.
+
+class AdaptiveClock:
+    MIN_INTERVAL = 900       # 15 minutes
+    MAX_INTERVAL = 86400     # 24 hours
+    PROBE_AFTER = 10         # force a tight sync after N consecutive backoffs
+    DEFAULT_EPSILON = 30     # seconds of tolerable drift
+
+    def __init__(self, ntp_client):
+        self.ntp = ntp_client
+        self.interval = 3600          # start at 1 hour
+        self.last_sync = time.monotonic()
+        self.last_drift = 0.0
+        self.syncs = 0
+        self.consecutive_stable = 0
+        self.history = []             # last 10 sync events
+        self.settled = False
+        self.settled_at_sync = -1
+
+    @property
+    def epsilon(self):
+        return schedule.get("ntp_epsilon", self.DEFAULT_EPSILON)
+
+    def maybe_sync(self):
+        if not self.ntp:
+            return
+        elapsed = time.monotonic() - self.last_sync
+        if elapsed < self.interval:
+            return
+        self._do_sync()
+
+    def _do_sync(self):
+        try:
+            rtc_before = time.time()
+            self.ntp.datetime          # network call — syncs RTC to UTC
+            rtc_after = time.time()
+            drift = rtc_after - rtc_before  # rough: includes network latency
+            # Better drift measure: compare old RTC to new NTP truth
+            # drift ≈ how far the old clock was off
+            self.last_drift = abs(rtc_after - rtc_before)
+
+            # The real drift is how much the RTC moved during sync.
+            # If RTC was accurate, the jump is just network round-trip (~0.1s).
+            # If RTC had drifted, the jump is larger.
+            # We use a simpler heuristic: measure time.time() before NTP sync,
+            # then after. The difference minus expected network time (~0.5s)
+            # approximates drift. But on first sync this is unreliable.
+            # Better: track how much the clock jumps.
+            drift_secs = abs(rtc_after - rtc_before)
+
+            self.syncs += 1
+            self.last_sync = time.monotonic()
+
+            # Adaptive interval
+            old_interval = self.interval
+            if drift_secs < self.epsilon:
+                self.consecutive_stable += 1
+                self.interval = min(self.interval * 2, self.MAX_INTERVAL)
+                direction = "stable"
+            else:
+                self.consecutive_stable = 0
+                self.interval = max(self.interval // 2, self.MIN_INTERVAL)
+                self.settled = False
+                self.settled_at_sync = -1
+                direction = "correcting"
+
+            # Detect settled state
+            if not self.settled and self.interval >= self.MAX_INTERVAL // 2:
+                self.settled = True
+                self.settled_at_sync = self.syncs
+
+            # Periodic probe: after many stable syncs, force one tight
+            # sync to verify assumptions still hold
+            if self.consecutive_stable >= self.PROBE_AFTER:
+                self.interval = self.MIN_INTERVAL
+                self.consecutive_stable = 0
+                direction = "probing"
+
+            # Log
+            interval_h = self.interval / 3600
+            if interval_h >= 1:
+                interval_str = f"{interval_h:.1f}h"
+            else:
+                interval_str = f"{self.interval // 60}m"
+
+            entry = {
+                "sync": self.syncs,
+                "drift": round(drift_secs, 2),
+                "interval": self.interval,
+                "direction": direction,
+                "uptime": int(time.monotonic()),
+            }
+            self.history.append(entry)
+            if len(self.history) > 10:
+                self.history.pop(0)
+
+            print(f"  ntp sync #{self.syncs}: ~{drift_secs:.1f}s drift, "
+                  f"next in {interval_str} ({direction})")
+
+        except Exception as e:
+            print(f"  ntp sync failed: {e}")
+
+    def status(self):
+        """Return clock status for the API/UI."""
+        interval_h = self.interval / 3600
+        if interval_h >= 1:
+            interval_str = f"{interval_h:.1f}h"
+        else:
+            interval_str = f"{self.interval // 60}m"
+        return {
+            "syncs": self.syncs,
+            "interval": self.interval,
+            "interval_str": interval_str,
+            "last_drift": round(self.last_drift, 2),
+            "settled": self.settled,
+            "settled_at_sync": self.settled_at_sync,
+            "epsilon": self.epsilon,
+            "history": self.history,
+        }
+
+
 try:
     with open("/static/index.html", "r") as f:
         _INDEX_HTML = f.read()
@@ -142,6 +265,7 @@ def serve_status(request: Request):
         "version": VERSION,
         "light_on": light.value,
         "schedule": schedule,
+        "clock": clock.status(),
     }
     return Response(request, json.dumps(status),
                     content_type="application/json")
@@ -214,15 +338,17 @@ except Exception as e:
     print(f"  mDNS: couldn't advertise ({e})")
 
 pool = socketpool.SocketPool(wifi.radio)
+ntp = None
 try:
     ntp = adafruit_ntp.NTP(pool, tz_offset=0)
-    ntp.datetime  # sync RTC to UTC
+    ntp.datetime  # initial sync — RTC to UTC
     now = local_now()
     print(f"  asking the internet what time it is... "
           f"{now.tm_hour:02d}:{now.tm_min:02d}. good.")
 except Exception as e:
     print(f"  time sync failed. we'll guess. ({e})")
-    ntp = None
+
+clock = AdaptiveClock(ntp)
 
 schedule = load_schedule()
 n = len(schedule.get("periods", []))
@@ -256,11 +382,7 @@ print("  the garden is open.")
 print()
 
 # ── Main Loop ──────────────────────────────────────────────
-# time.localtime() returns UTC on CircuitPython. We apply the
-# timezone offset ourselves to avoid hitting NTP every second.
 last_state = None
-last_ntp_sync = time.monotonic()
-NTP_RESYNC_INTERVAL = 6 * 3600
 
 while True:
     try:
@@ -280,12 +402,5 @@ while True:
     except Exception as e:
         print(f"  time error: {e}")
 
-    # Periodic NTP re-sync
-    if ntp and (time.monotonic() - last_ntp_sync) > NTP_RESYNC_INTERVAL:
-        try:
-            ntp.datetime  # triggers re-sync, updates RTC
-            last_ntp_sync = time.monotonic()
-        except Exception:
-            pass  # silent — we'll try again next interval
-
+    clock.maybe_sync()
     time.sleep(1)

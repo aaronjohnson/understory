@@ -195,3 +195,68 @@ class TestMigration:
         old = {"on_hour": 6, "on_minute": 0, "off_hour": 22, "off_minute": 0, "enabled": False}
         new = migrate_schedule(old)
         assert new["enabled"] is False
+
+
+# ── Tests: adaptive clock logic ───────────────────────────
+
+class TestAdaptiveInterval:
+    """Test the interval doubling/halving logic in isolation."""
+    MIN = 900
+    MAX = 86400
+
+    def adapt(self, interval, drift, epsilon):
+        """Simulate one adaptation step."""
+        if drift < epsilon:
+            return min(interval * 2, self.MAX)
+        else:
+            return max(interval // 2, self.MIN)
+
+    def test_stable_doubles(self):
+        interval = 3600
+        interval = self.adapt(interval, drift=1.0, epsilon=30)
+        assert interval == 7200
+
+    def test_drifting_halves(self):
+        interval = 3600
+        interval = self.adapt(interval, drift=45.0, epsilon=30)
+        assert interval == 1800
+
+    def test_clamps_at_max(self):
+        interval = 43200  # 12h
+        interval = self.adapt(interval, drift=1.0, epsilon=30)
+        assert interval == self.MAX
+
+    def test_clamps_at_min(self):
+        interval = 900
+        interval = self.adapt(interval, drift=45.0, epsilon=30)
+        assert interval == self.MIN
+
+    def test_convergence_from_1h(self):
+        """Starting at 1h with stable clock, should reach max in a few steps."""
+        interval = 3600
+        steps = 0
+        while interval < self.MAX:
+            interval = self.adapt(interval, drift=0.5, epsilon=30)
+            steps += 1
+        assert steps <= 5  # 1h -> 2h -> 4h -> 8h -> 16h -> 24h
+
+    def test_recovery_from_max(self):
+        """At max interval, sudden drift should drop quickly."""
+        interval = self.MAX
+        steps = 0
+        while interval > 3600:
+            interval = self.adapt(interval, drift=60.0, epsilon=30)
+            steps += 1
+        assert steps <= 5  # 24h -> 12h -> 6h -> 3h -> 1.5h
+
+    def test_tight_epsilon(self):
+        """With epsilon=2, even small drift triggers correction."""
+        interval = 7200
+        interval = self.adapt(interval, drift=3.0, epsilon=2)
+        assert interval == 3600
+
+    def test_loose_epsilon(self):
+        """With epsilon=120, large drift is still tolerable."""
+        interval = 3600
+        interval = self.adapt(interval, drift=60.0, epsilon=120)
+        assert interval == 7200  # backs off — drift within tolerance

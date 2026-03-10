@@ -469,6 +469,53 @@
   .quiet-times input:focus { outline: none; border-color: rgba(244,237,216,0.4); }
   .quiet-sep { opacity: 0.4; font-size: 0.8rem; }
 
+  /* ── Clock status ── */
+  .clock-card {
+    background: var(--soil);
+    color: var(--cream);
+    border-radius: 10px;
+    padding: 0.8rem 1rem;
+    margin-top: 0.75rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.72rem;
+    line-height: 1.6;
+    opacity: 0.9;
+  }
+  .clock-card .clock-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.3rem;
+  }
+  .clock-label {
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.6;
+    font-size: 0.65rem;
+  }
+  .clock-settled {
+    font-size: 0.6rem;
+    padding: 0.15rem 0.45rem;
+    border-radius: 3px;
+    background: rgba(90,138,92,0.3);
+    color: var(--cream);
+  }
+  .clock-settled.no { background: rgba(184,112,75,0.3); }
+  .clock-detail { opacity: 0.7; }
+  .clock-bar {
+    height: 3px;
+    background: rgba(255,255,255,0.1);
+    border-radius: 2px;
+    margin-top: 0.5rem;
+    overflow: hidden;
+  }
+  .clock-fill {
+    height: 100%;
+    background: var(--fern);
+    border-radius: 2px;
+    transition: width 1s ease;
+  }
+
   /* ── Gap between periods ── */
   .gap-row {
     display: flex;
@@ -533,6 +580,15 @@
           <span class="quiet-sep">:00</span>
         </div>
       </div>
+    </div>
+
+    <div class="clock-card" id="clockCard">
+      <div class="clock-head">
+        <span class="clock-label">clock sync &mdash; tolerance <input type="number" id="ntpEpsilon" min="2" max="120" value="30" style="width:2.8rem;padding:0.15rem 0.3rem;font-size:0.7rem;font-family:'Courier New',monospace;border:1px solid rgba(244,237,216,0.2);border-radius:4px;background:rgba(255,255,255,0.1);color:var(--cream);text-align:center">s</span>
+        <span class="clock-settled no" id="clockSettled">warming up</span>
+      </div>
+      <div class="clock-detail" id="clockDetail">waiting for first sync...</div>
+      <div class="clock-bar"><div class="clock-fill" id="clockFill" style="width:0%"></div></div>
     </div>
   </div>
 
@@ -765,6 +821,7 @@ async function poll(){
     var np = (d.schedule&&d.schedule.periods)?d.schedule.periods.length:0;
     det.textContent = np + ' period' + (np!==1?'s':'') + (d.schedule&&d.schedule.enabled?'':' \u00b7 paused');
     if(d.version){ document.getElementById('ver').textContent = 'v'+d.version; }
+    if(d.clock) updateClock(d.clock);
     if(d.schedule && firstLoad){
       firstLoad = false;
       if(d.schedule.periods && d.schedule.periods.length){
@@ -773,6 +830,7 @@ async function poll(){
       document.getElementById('enabled').checked = d.schedule.enabled !== false;
       if(d.schedule.quiet_start !== undefined) document.getElementById('quietStart').value = d.schedule.quiet_start;
       if(d.schedule.quiet_end !== undefined) document.getElementById('quietEnd').value = d.schedule.quiet_end;
+      if(d.schedule.ntp_epsilon !== undefined) document.getElementById('ntpEpsilon').value = d.schedule.ntp_epsilon;
       renderPeriods();
     }
   } catch(e){
@@ -787,7 +845,8 @@ async function save(){
     periods: periods,
     enabled: document.getElementById('enabled').checked,
     quiet_start: parseInt(document.getElementById('quietStart').value),
-    quiet_end: parseInt(document.getElementById('quietEnd').value)
+    quiet_end: parseInt(document.getElementById('quietEnd').value),
+    ntp_epsilon: parseInt(document.getElementById('ntpEpsilon').value) || 30
   });
   btn.textContent = 'Saving...';
   try {
@@ -842,6 +901,31 @@ var ALMANAC = [
 ];
 var alEl = document.getElementById('almanac');
 if(alEl) alEl.textContent = ALMANAC[new Date().getMonth()];
+
+function updateClock(c){
+  var badge = document.getElementById('clockSettled');
+  var detail = document.getElementById('clockDetail');
+  var fill = document.getElementById('clockFill');
+  if(!c.syncs){
+    detail.textContent = 'waiting for first sync...';
+    return;
+  }
+  if(c.settled){
+    badge.textContent = 'settled';
+    badge.className = 'clock-settled';
+  } else {
+    badge.textContent = c.syncs < 3 ? 'warming up' : 'adapting';
+    badge.className = 'clock-settled no';
+  }
+  var line = 'sync #'+c.syncs+' \u00b7 drift '+c.last_drift+'s \u00b7 next in '+c.interval_str;
+  if(c.settled && c.settled_at_sync > 0){
+    line += ' \u00b7 settled at sync #'+c.settled_at_sync;
+  }
+  detail.textContent = line;
+  // progress bar: log scale from MIN (15m) to MAX (24h)
+  var pct = Math.log(c.interval/900) / Math.log(86400/900) * 100;
+  fill.style.width = Math.max(5, Math.min(100, pct))+'%';
+}
 
 renderPresets();
 renderPeriods();
