@@ -26,6 +26,30 @@ TIMEZONE_OFFSET = int(os.getenv("TIMEZONE_OFFSET", -7))
 VERSION = "0.4.0"
 HOSTNAME = "herbgarden"
 SCHEDULE_FILE = "/schedule.json"
+LOG_FILE = "/log.txt"
+LOG_MAX_LINES = 200
+
+
+def log(msg):
+    """Print to serial and append to log file on flash."""
+    print(msg)
+    try:
+        with open(LOG_FILE, "a") as f:
+            f.write(msg.strip() + "\n")
+    except OSError:
+        pass  # read-only filesystem (dev mode) — serial only
+
+
+def trim_log():
+    """Keep log file from growing forever."""
+    try:
+        with open(LOG_FILE, "r") as f:
+            lines = f.readlines()
+        if len(lines) > LOG_MAX_LINES:
+            with open(LOG_FILE, "w") as f:
+                f.writelines(lines[-LOG_MAX_LINES:])
+    except OSError:
+        pass
 
 # ── Hardware ───────────────────────────────────────────────
 light = digitalio.DigitalInOut(board.A0)
@@ -84,7 +108,13 @@ def default_schedule():
 
 def local_now():
     """Get local time by applying timezone offset to UTC."""
-    return time.localtime(time.time() + TIMEZONE_OFFSET * 3600)
+    utc = time.time()
+    offset = TIMEZONE_OFFSET * 3600
+    # Avoid time_t overflow on CircuitPython (epoch is 2020, 32-bit)
+    local_epoch = utc + offset
+    if local_epoch < 0:
+        local_epoch = 0
+    return time.localtime(local_epoch)
 
 
 def in_quiet_hours(now, schedule):
@@ -134,6 +164,9 @@ class AdaptiveClock:
     PROBE_AFTER = 10         # force a tight sync after N consecutive backoffs
     DEFAULT_EPSILON = 30     # seconds of tolerable drift
 
+    HISTORY_FILE = "/clock_log.json"
+    HISTORY_MAX = 50  # entries persisted to disk
+
     def __init__(self, ntp_client):
         self.ntp = ntp_client
         self.interval = 3600          # start at 1 hour
@@ -141,9 +174,25 @@ class AdaptiveClock:
         self.last_drift = 0.0
         self.syncs = 0
         self.consecutive_stable = 0
-        self.history = []             # last 10 sync events
+        self.history = self._load_history()
         self.settled = False
         self.settled_at_sync = -1
+
+    def _load_history(self):
+        try:
+            with open(self.HISTORY_FILE, "r") as f:
+                data = json.load(f)
+            print(f"  clock: resumed with {len(data)} sync records")
+            return data
+        except (OSError, ValueError):
+            return []
+
+    def _save_history(self):
+        try:
+            with open(self.HISTORY_FILE, "w") as f:
+                json.dump(self.history[-self.HISTORY_MAX:], f)
+        except OSError:
+            pass
 
     @property
     def epsilon(self):
@@ -219,11 +268,12 @@ class AdaptiveClock:
                 "uptime": int(time.monotonic()),
             }
             self.history.append(entry)
-            if len(self.history) > 10:
+            if len(self.history) > self.HISTORY_MAX:
                 self.history.pop(0)
+            self._save_history()
 
-            print(f"  ntp sync #{self.syncs}: ~{drift_secs:.1f}s drift, "
-                  f"next in {interval_str} ({direction})")
+            log(f"  ntp sync #{self.syncs}: ~{drift_secs:.1f}s drift, "
+                f"next in {interval_str} ({direction})")
 
         except Exception as e:
             print(f"  ntp sync failed: {e}")
@@ -310,8 +360,9 @@ def handle_schedule_update(request: Request):
 
 
 # ── Boot Sequence ──────────────────────────────────────────
+trim_log()
 print()
-print(f"  understory v{VERSION}")
+log(f"  understory v{VERSION} boot")
 print("  how does your garden grow?")
 print()
 
@@ -392,12 +443,16 @@ while True:
 
     try:
         now = local_now()
+        # Skip schedule evaluation if clock hasn't synced (year 2020 = no NTP)
+        if now.tm_year <= 2020:
+            time.sleep(1)
+            continue
         new_state = should_be_on(now, schedule)
         light.value = new_state
 
         if new_state != last_state:
             state_str = "ON" if new_state else "OFF"
-            print(f"  {now.tm_hour:02d}:{now.tm_min:02d} light {state_str}")
+            log(f"  {now.tm_hour:02d}:{now.tm_min:02d} light {state_str}")
             last_state = new_state
     except Exception as e:
         print(f"  time error: {e}")

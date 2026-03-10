@@ -13,6 +13,10 @@ software/settings.toml
 *.bin
 *.uf2
 
+# Device runtime data (generated on CIRCUITPY)
+log.txt
+clock_log.json
+
 # Session artifacts
 resume.txt
 cp_root_attempt.sh
