@@ -4,7 +4,8 @@ WiFi-enabled grow light scheduler using an Adafruit QT Py ESP32-S3 and
 a low-side N-channel MOSFET switch. CircuitPython firmware, no cloud,
 no app — just a tiny web server on a chip the size of a postage stamp.
 
-Open `http://herbgarden.local` on your phone to set the schedule.
+Connect to the local network and open `http://herbgarden.local` on your
+phone to set the schedule.
 
 ## How It Works
 
