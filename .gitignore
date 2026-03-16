@@ -22,6 +22,10 @@ clock_log.json
 resume.txt
 cp_root_attempt.sh
 
+# Python bytecode
+__pycache__/
+*.pyc
+
 # OS junk
 .DS_Store
 Thumbs.db
