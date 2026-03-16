@@ -1,0 +1,601 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>RO Monitor</title>
+<style>
+  :root {
+    --cream: #f4edd8;
+    --parchment: #ebe3cc;
+    --deep: #1e3a4f;
+    --deep-light: #2a5270;
+    --stream: #3a7ca5;
+    --terra: #b8704b;
+    --terra-dark: #8e5535;
+    --bark: #4a3728;
+    --soil: #3b2e22;
+    --clear: #4aa88a;
+    --clear-dim: #3d8f75;
+    --warn: #d4a54a;
+    --alert: #c0503a;
+    --shade: rgba(59,46,34,0.08);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: Georgia, 'Times New Roman', serif;
+    background: var(--cream);
+    background-image:
+      radial-gradient(ellipse at 20% 0%, rgba(58,124,165,0.07) 0%, transparent 60%),
+      radial-gradient(ellipse at 80% 100%, rgba(74,168,138,0.06) 0%, transparent 50%);
+    color: var(--bark);
+    min-height: 100vh;
+    padding: 0 0 3rem;
+  }
+
+  header {
+    background: var(--deep);
+    background-image: linear-gradient(170deg, var(--deep) 40%, var(--deep-light) 100%);
+    padding: 1.75rem 1.5rem 1.5rem;
+    color: var(--cream);
+    position: relative;
+    overflow: hidden;
+  }
+  header::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0; right: 0;
+    height: 18px;
+    background: var(--cream);
+    mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 18'%3E%3Cpath d='M0 18 Q25 0 50 18 Q75 0 100 18 Q125 0 150 18 Q175 0 200 18 Q225 0 250 18 Q275 0 300 18 Q325 0 350 18 Q375 0 400 18 Z'/%3E%3C/svg%3E");
+    -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 400 18'%3E%3Cpath d='M0 18 Q25 0 50 18 Q75 0 100 18 Q125 0 150 18 Q175 0 200 18 Q225 0 250 18 Q275 0 300 18 Q325 0 350 18 Q375 0 400 18 Z'/%3E%3C/svg%3E");
+    mask-size: 200px 18px;
+    -webkit-mask-size: 200px 18px;
+  }
+
+  h1 {
+    font-size: 1.6rem;
+    font-weight: normal;
+    letter-spacing: 0.04em;
+    font-style: italic;
+  }
+  .host {
+    font-family: 'Courier New', monospace;
+    font-size: 0.72rem;
+    opacity: 0.6;
+    margin-top: 0.3rem;
+    letter-spacing: 0.03em;
+  }
+
+  main { max-width: 420px; margin: 0 auto; padding: 1.25rem 1.25rem 0; }
+
+  /* ── Status Card ── */
+  .status-card {
+    background: white;
+    border: 1.5px solid var(--parchment);
+    border-radius: 10px;
+    padding: 1.1rem 1.2rem;
+    margin-bottom: 1rem;
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    box-shadow: 0 2px 8px var(--shade);
+    transition: border-color 0.6s ease;
+  }
+  .status-card.ok { border-color: var(--clear); }
+  .status-card.warn { border-color: var(--warn); }
+  .status-card.alert { border-color: var(--alert); }
+
+  .drop {
+    width: 42px; height: 42px;
+    border-radius: 50% 50% 50% 0;
+    transform: rotate(-45deg);
+    flex-shrink: 0;
+    transition: all 0.8s ease;
+    position: relative;
+  }
+  .drop.ok {
+    background: var(--clear);
+    box-shadow: 0 0 12px rgba(74,168,138,0.4);
+  }
+  .drop.warn {
+    background: var(--warn);
+    box-shadow: 0 0 12px rgba(212,165,74,0.4);
+  }
+  .drop.alert {
+    background: var(--alert);
+    box-shadow: 0 0 12px rgba(192,80,58,0.4);
+    animation: pulse 2s ease-in-out infinite;
+  }
+  .drop.offline {
+    background: var(--parchment);
+    box-shadow: inset 0 2px 4px rgba(0,0,0,0.08);
+  }
+  @keyframes pulse {
+    0%, 100% { box-shadow: 0 0 12px rgba(192,80,58,0.4); }
+    50% { box-shadow: 0 0 20px rgba(192,80,58,0.6); }
+  }
+
+  .status-text {
+    font-size: 1.05rem;
+    font-style: italic;
+    color: var(--bark);
+  }
+  .status-text small {
+    display: block;
+    font-style: normal;
+    font-family: 'Courier New', monospace;
+    font-size: 0.7rem;
+    color: var(--terra);
+    margin-top: 0.2rem;
+    opacity: 0.8;
+  }
+
+  /* ── Section Headers ── */
+  .section-title {
+    font-size: 0.82rem;
+    text-transform: uppercase;
+    letter-spacing: 0.12em;
+    color: var(--terra-dark);
+    font-weight: normal;
+    margin-bottom: 0.75rem;
+  }
+
+  /* ── Gauge Cards ── */
+  .gauges {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 0.75rem;
+    margin-bottom: 1rem;
+  }
+
+  .gauge {
+    background: white;
+    border: 1.5px solid var(--parchment);
+    border-radius: 10px;
+    padding: 0.9rem 1rem;
+    box-shadow: 0 2px 8px var(--shade);
+    text-align: center;
+    transition: border-color 0.3s;
+  }
+  .gauge.ok { border-color: var(--clear); }
+  .gauge.warn { border-color: var(--warn); }
+  .gauge.alert { border-color: var(--alert); }
+
+  .gauge-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-family: 'Courier New', monospace;
+    color: var(--stream);
+    margin-bottom: 0.3rem;
+  }
+  .gauge-value {
+    font-size: 1.6rem;
+    font-weight: normal;
+    color: var(--bark);
+    line-height: 1.1;
+  }
+  .gauge-unit {
+    font-size: 0.7rem;
+    font-family: 'Courier New', monospace;
+    color: var(--terra);
+    opacity: 0.7;
+    margin-top: 0.15rem;
+  }
+
+  .gauge-wide {
+    grid-column: 1 / -1;
+  }
+
+  /* ── Rejection Bar ── */
+  .bar-card {
+    background: white;
+    border: 1.5px solid var(--parchment);
+    border-radius: 10px;
+    padding: 0.9rem 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 8px var(--shade);
+  }
+  .bar-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: baseline;
+    margin-bottom: 0.5rem;
+  }
+  .bar-label {
+    font-size: 0.65rem;
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    font-family: 'Courier New', monospace;
+    color: var(--stream);
+  }
+  .bar-value {
+    font-size: 1.1rem;
+    color: var(--bark);
+  }
+  .bar-track {
+    height: 8px;
+    background: var(--parchment);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .bar-fill {
+    height: 100%;
+    border-radius: 4px;
+    transition: width 0.8s ease, background 0.5s;
+    background: var(--clear);
+  }
+  .bar-fill.warn { background: var(--warn); }
+  .bar-fill.alert { background: var(--alert); }
+
+  /* ── Volume Card ── */
+  .volume-card {
+    background: var(--soil);
+    color: var(--cream);
+    border-radius: 10px;
+    padding: 0.9rem 1rem;
+    margin-bottom: 1rem;
+    font-family: 'Courier New', monospace;
+    font-size: 0.78rem;
+    line-height: 1.7;
+  }
+  .volume-label {
+    text-transform: uppercase;
+    letter-spacing: 0.1em;
+    opacity: 0.6;
+    font-size: 0.65rem;
+    margin-bottom: 0.2rem;
+  }
+  .volume-row {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  /* ── Thresholds Card ── */
+  .thresholds-card {
+    background: white;
+    border: 1.5px solid var(--parchment);
+    border-radius: 10px;
+    padding: 0.9rem 1rem;
+    margin-bottom: 1rem;
+    box-shadow: 0 2px 8px var(--shade);
+  }
+  .thresh-row {
+    display: flex;
+    align-items: center;
+    gap: 0.6rem;
+    margin-bottom: 0.5rem;
+  }
+  .thresh-row:last-child { margin-bottom: 0; }
+  .thresh-label {
+    flex: 1;
+    font-size: 0.82rem;
+    color: var(--bark);
+  }
+  .thresh-input {
+    width: 4.5rem;
+    padding: 0.4rem 0.5rem;
+    font-size: 0.95rem;
+    font-family: Georgia, serif;
+    border: 1.5px solid var(--parchment);
+    border-radius: 6px;
+    background: var(--cream);
+    color: var(--bark);
+    text-align: center;
+  }
+  .thresh-input:focus {
+    outline: none;
+    border-color: var(--stream);
+  }
+  .thresh-unit {
+    font-size: 0.7rem;
+    font-family: 'Courier New', monospace;
+    color: var(--terra);
+    opacity: 0.7;
+    width: 2.5rem;
+  }
+
+  /* ── Save Button ── */
+  .save-btn {
+    width: 100%;
+    padding: 0.85rem;
+    font-family: Georgia, serif;
+    font-size: 1rem;
+    letter-spacing: 0.04em;
+    color: var(--cream);
+    background: var(--deep);
+    background-image: linear-gradient(170deg, var(--deep) 30%, var(--deep-light) 100%);
+    border: none;
+    border-radius: 10px;
+    cursor: pointer;
+    transition: all 0.3s;
+    margin-bottom: 0.75rem;
+  }
+  .save-btn:active { transform: scale(0.98); }
+  .save-btn:hover { box-shadow: 0 4px 14px rgba(30,58,79,0.3); }
+  .save-btn.saved { background: var(--clear); background-image: none; }
+
+  /* ── Toast ── */
+  .toast {
+    position: fixed;
+    bottom: 1.5rem;
+    left: 50%;
+    transform: translateX(-50%) translateY(80px);
+    background: var(--soil);
+    color: var(--cream);
+    padding: 0.65rem 1.4rem;
+    border-radius: 8px;
+    font-size: 0.85rem;
+    font-style: italic;
+    opacity: 0;
+    transition: all 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+    pointer-events: none;
+    z-index: 10;
+    white-space: nowrap;
+  }
+  .toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+  .toast.error { background: var(--terra-dark); }
+
+  /* ── Reveal ── */
+  .reveal { opacity: 0; transform: translateY(8px); transition: opacity 0.6s ease, transform 0.6s ease; }
+  .reveal.visible { opacity: 1; transform: translateY(0); }
+</style>
+</head>
+<body>
+
+<header>
+  <h1>RO Monitor</h1>
+  <div class="host">romonitor.local</div>
+</header>
+
+<main>
+  <div class="status-card" id="statusCard">
+    <div class="drop offline" id="drop"></div>
+    <div class="status-text">
+      <span id="stateText">Checking...</span>
+      <small id="stateDetail"></small>
+    </div>
+  </div>
+
+  <div class="reveal" id="gaugesSection">
+    <div class="section-title">Water Quality</div>
+    <div class="gauges">
+      <div class="gauge" id="gaugePre">
+        <div class="gauge-label">TDS Pre</div>
+        <div class="gauge-value" id="tdsPre">--</div>
+        <div class="gauge-unit">ppm</div>
+      </div>
+      <div class="gauge" id="gaugePost">
+        <div class="gauge-label">TDS Post</div>
+        <div class="gauge-value" id="tdsPost">--</div>
+        <div class="gauge-unit">ppm</div>
+      </div>
+      <div class="gauge">
+        <div class="gauge-label">Flow Rate</div>
+        <div class="gauge-value" id="flowRate">--</div>
+        <div class="gauge-unit">L/min</div>
+      </div>
+      <div class="gauge">
+        <div class="gauge-label">Temperature</div>
+        <div class="gauge-value" id="tempC">--</div>
+        <div class="gauge-unit">&deg;C</div>
+      </div>
+    </div>
+
+    <div class="bar-card">
+      <div class="bar-header">
+        <span class="bar-label">Membrane Rejection</span>
+        <span class="bar-value" id="rejectionPct">--%</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill" id="rejectionBar" style="width:0%"></div>
+      </div>
+    </div>
+
+    <div class="bar-card">
+      <div class="bar-header">
+        <span class="bar-label">Membrane Life</span>
+        <span class="bar-value" id="membranePct">--%</span>
+      </div>
+      <div class="bar-track">
+        <div class="bar-fill" id="membraneBar" style="width:0%"></div>
+      </div>
+    </div>
+  </div>
+
+  <div class="reveal" id="volumeSection">
+    <div class="volume-card">
+      <div class="volume-label">Volume</div>
+      <div class="volume-row">
+        <span>today</span>
+        <span id="litersToday">0.0 L</span>
+      </div>
+      <div class="volume-row">
+        <span>lifetime</span>
+        <span id="litersLifetime">0.0 L</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="reveal" id="thresholdsSection">
+    <div class="section-title">Thresholds</div>
+    <div class="thresholds-card">
+      <div class="thresh-row">
+        <span class="thresh-label">TDS alert</span>
+        <input class="thresh-input" type="number" id="threshAlert" min="1" max="500" value="50">
+        <span class="thresh-unit">ppm</span>
+      </div>
+      <div class="thresh-row">
+        <span class="thresh-label">TDS warning</span>
+        <input class="thresh-input" type="number" id="threshWarn" min="1" max="500" value="20">
+        <span class="thresh-unit">ppm</span>
+      </div>
+      <div class="thresh-row">
+        <span class="thresh-label">Membrane life</span>
+        <input class="thresh-input" type="number" id="threshLife" min="100" max="20000" value="2000">
+        <span class="thresh-unit">L</span>
+      </div>
+    </div>
+
+    <button class="save-btn" id="saveBtn" onclick="save()">Save Thresholds</button>
+    <button class="save-btn" style="background:var(--terra);background-image:none" onclick="resetDaily()">Reset Daily Counter</button>
+  </div>
+</main>
+
+<div class="toast" id="toast"></div>
+
+<script>
+var firstLoad = true;
+
+function tdsClass(ppm, thresholds) {
+  if (ppm > (thresholds.tds_alert_ppm || 50)) return 'alert';
+  if (ppm > (thresholds.tds_warn_ppm || 20)) return 'warn';
+  return 'ok';
+}
+
+function barClass(pct) {
+  if (pct < 50) return 'alert';
+  if (pct < 80) return 'warn';
+  return '';
+}
+
+function showToast(msg, isError) {
+  var t = document.getElementById('toast');
+  t.textContent = msg;
+  t.className = 'toast' + (isError ? ' error' : '');
+  setTimeout(function(){ t.classList.add('show'); }, 10);
+  setTimeout(function(){ t.classList.remove('show'); }, 2800);
+}
+
+async function poll() {
+  try {
+    var r = await fetch('/status');
+    var d = await r.json();
+    var rd = d.readings;
+    var th = d.thresholds || {};
+
+    // Status card
+    var drop = document.getElementById('drop');
+    var card = document.getElementById('statusCard');
+    var txt = document.getElementById('stateText');
+    var det = document.getElementById('stateDetail');
+
+    var postClass = tdsClass(rd.tds_post, th);
+    drop.className = 'drop ' + postClass;
+    card.className = 'status-card ' + postClass;
+
+    if (rd.alerts && rd.alerts.tds_alert) {
+      txt.textContent = 'Membrane needs attention';
+      det.textContent = 'post-filter TDS is above alert threshold';
+    } else if (rd.alerts && rd.alerts.tds_warn) {
+      txt.textContent = 'Water quality fair';
+      det.textContent = 'post-filter TDS is elevated';
+    } else {
+      txt.textContent = 'Water is clean';
+      det.textContent = 'membrane working normally';
+    }
+
+    // Gauges
+    document.getElementById('tdsPre').textContent = rd.tds_pre.toFixed(0);
+    document.getElementById('tdsPost').textContent = rd.tds_post.toFixed(0);
+    document.getElementById('gaugePost').className = 'gauge ' + postClass;
+    document.getElementById('flowRate').textContent = rd.flow_lpm.toFixed(2);
+    document.getElementById('tempC').textContent = rd.temp_c.toFixed(1);
+
+    // Rejection bar
+    var rejPct = rd.rejection_pct;
+    document.getElementById('rejectionPct').textContent = rejPct.toFixed(1) + '%';
+    var rejBar = document.getElementById('rejectionBar');
+    rejBar.style.width = Math.min(100, rejPct) + '%';
+    rejBar.className = 'bar-fill ' + barClass(rejPct);
+
+    // Membrane life bar
+    var memPct = rd.membrane_life_pct;
+    document.getElementById('membranePct').textContent = memPct.toFixed(0) + '%';
+    var memBar = document.getElementById('membraneBar');
+    memBar.style.width = Math.min(100, memPct) + '%';
+    memBar.className = 'bar-fill ' + barClass(memPct);
+
+    // Volume
+    document.getElementById('litersToday').textContent = rd.liters_today.toFixed(1) + ' L';
+    document.getElementById('litersLifetime').textContent = rd.liters_lifetime.toFixed(1) + ' L';
+
+    // Version
+    if (d.version) {
+      document.getElementById('ver').textContent = 'v' + d.version;
+    }
+
+    // Load thresholds on first poll
+    if (firstLoad && th) {
+      firstLoad = false;
+      if (th.tds_alert_ppm !== undefined) document.getElementById('threshAlert').value = th.tds_alert_ppm;
+      if (th.tds_warn_ppm !== undefined) document.getElementById('threshWarn').value = th.tds_warn_ppm;
+      if (th.membrane_life_liters !== undefined) document.getElementById('threshLife').value = th.membrane_life_liters;
+    }
+  } catch(e) {
+    document.getElementById('stateText').textContent = 'Offline';
+    document.getElementById('stateDetail').textContent = 'could not reach device';
+    document.getElementById('drop').className = 'drop offline';
+    document.getElementById('statusCard').className = 'status-card';
+  }
+}
+
+async function save() {
+  var btn = document.getElementById('saveBtn');
+  var body = JSON.stringify({
+    tds_alert_ppm: parseInt(document.getElementById('threshAlert').value),
+    tds_warn_ppm: parseInt(document.getElementById('threshWarn').value),
+    membrane_life_liters: parseInt(document.getElementById('threshLife').value)
+  });
+  btn.textContent = 'Saving...';
+  try {
+    var r = await fetch('/thresholds', {method: 'POST', body: body});
+    var d = await r.json();
+    if (d.ok) {
+      btn.textContent = 'Saved';
+      btn.classList.add('saved');
+      showToast('Thresholds updated');
+      poll();
+    } else {
+      showToast(d.error || 'Error', true);
+    }
+  } catch(e) {
+    showToast('Could not reach device', true);
+  }
+  setTimeout(function(){
+    btn.textContent = 'Save Thresholds';
+    btn.classList.remove('saved');
+  }, 2000);
+}
+
+async function resetDaily() {
+  try {
+    var r = await fetch('/reset-daily', {method: 'POST'});
+    var d = await r.json();
+    if (d.ok) {
+      showToast('Daily counter reset');
+      poll();
+    }
+  } catch(e) {
+    showToast('Could not reach device', true);
+  }
+}
+
+poll();
+setInterval(poll, 5000);
+
+// progressive reveal
+setTimeout(function(){ document.getElementById('gaugesSection').classList.add('visible'); }, 300);
+setTimeout(function(){ document.getElementById('volumeSection').classList.add('visible'); }, 600);
+setTimeout(function(){ document.getElementById('thresholdsSection').classList.add('visible'); }, 900);
+</script>
+
+<footer style="text-align:center;margin:2rem 0 0;padding:1rem;font-size:0.7rem;font-family:'Courier New',monospace;color:var(--terra);opacity:0.6">
+  <a href="https://github.com/aaronjohnson/understory" style="color:inherit">understory</a> <span id="ver"></span> &middot; romonitor.local
+</footer>
+</body>
+</html>

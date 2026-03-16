@@ -1,0 +1,11 @@
+# settings.toml — CircuitPython configuration
+# Copy this file to settings.toml on the CIRCUITPY drive
+# and fill in your WiFi credentials.
+
+CIRCUITPY_WIFI_SSID = "your-network-name"
+CIRCUITPY_WIFI_PASSWORD = "your-password"
+
+# Timezone offset from UTC (hours)
+# Pacific Standard: -8, Pacific Daylight: -7
+# Mountain: -7/-6, Central: -6/-5, Eastern: -5/-4
+TIMEZONE_OFFSET = -8

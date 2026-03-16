@@ -3,6 +3,61 @@
 All notable changes to this project will be documented in this file.
 Format inspired by the Dwarf Fortress changelog tradition.
 
+## [0.5.0] - 2026-03-16
+
+### The Second Node
+
+- Understory now has a second node: `ro_monitor`. It monitors a
+  reverse osmosis water filtration system — TDS (total dissolved
+  solids) pre- and post-membrane, flow rate, and temperature
+- The RO membrane is the most expensive part of the system and it
+  gives no feedback about its health. Now it does. Two TDS sensors
+  compare the water going in to the water coming out, and the
+  difference tells you how well the membrane is working
+- Membrane rejection rate is calculated in real time. A healthy
+  membrane rejects 90–98% of dissolved solids. When that number
+  drops, you know it's time to replace
+- Flow rate tracking via a Hall effect pulse sensor (YF-S201).
+  Counts liters filtered today and lifetime, persisted to flash
+- Temperature compensation for TDS readings via DS18B20. Water
+  conductivity changes ~2% per degree C, so the math accounts
+  for it
+- A web UI at `http://romonitor.local` with TDS gauges, rejection
+  rate bars, flow rate, volume counters, and configurable alert
+  thresholds. Same phone-first philosophy as the herb garden
+- The water drop icon turns green/yellow/red based on post-filter
+  TDS levels. Green means clean. Red means the membrane wants a
+  conversation
+- Lifetime volume counter persists across power cycles with
+  throttled flash writes (every 10 liters) to protect the flash
+  from wearing out before the membrane does
+- Daily volume counter resets automatically at midnight (NTP) or
+  manually from the web UI
+- Alert thresholds are configurable: warning at 20 ppm, alert at
+  50 ppm. Adjustable from the UI and persisted to flash
+- Membrane life estimation based on volume filtered and rejection
+  rate degradation. It's a rough guess, but a rough guess is
+  better than no guess
+- The `nodes/` directory is introduced for organizing multiple
+  independent devices. The herb garden stays in `software/` for
+  now (moving it is a separate task)
+- Full test suite for TDS conversion, rejection rate, alert logic,
+  and membrane life estimation. 28 new tests, all passing
+- Hardware notes in `hardware/ro_monitor/NOTES.md` with wiring
+  diagrams, pin assignments, and calibration instructions
+
+### Known Quirks
+
+- The TDS sensors ship factory-calibrated but may need adjustment
+  for your specific water supply. The serial console is your friend
+- The YF-S201 flow sensor is nominally 450 pulses per liter but
+  yours may differ. Measure a known volume to verify
+- The DS18B20 temperature sensor is optional. Without it, TDS
+  readings assume 25°C. This is fine if your water temperature
+  doesn't vary much, and less fine if it does
+- The membrane life estimate is volume-based with a rejection rate
+  penalty. It's not a prediction — it's a countdown with vibes
+
 ## [0.4.0] - 2026-03-10
 
 ### The Listening

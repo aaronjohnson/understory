@@ -1,0 +1,6 @@
+{
+    "tds_alert_ppm": 50,
+    "tds_warn_ppm": 20,
+    "flow_min_lpm": 0.1,
+    "membrane_life_liters": 2000
+}

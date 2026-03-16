@@ -8,6 +8,7 @@ docs/*.fdb_latexmk
 
 # CircuitPython secrets — never commit real credentials
 software/settings.toml
+nodes/*/settings.toml
 
 # Firmware binaries — downloadable from circuitpython.org
 *.bin
@@ -20,6 +21,10 @@ clock_log.json
 # Session artifacts
 resume.txt
 cp_root_attempt.sh
+
+# Python bytecode
+__pycache__/
+*.pyc
 
 # OS junk
 .DS_Store
